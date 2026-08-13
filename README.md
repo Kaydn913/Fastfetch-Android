@@ -14,6 +14,7 @@ It also includes lots of customization options!
 - Google Pixel 7 Pro
 - Realme GT 7T (RMX5085)
 - Xiaomi 12T 5G (22071212AG)
+- Samsung Galaxy S9 (SM-G960U)
 - Samsung Galaxy S21 (SM-G991U1)
 - Samsung Galaxy S22+ (SM-S906U1)
 - Samsung Galaxy Note 8 (SM-N950U)
