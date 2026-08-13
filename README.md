@@ -11,7 +11,9 @@ It also includes lots of customization options!
 - Google Pixel 7 Pro
 - Samsung Galaxy S22+ (SM-S906U1)
 - Samsung Galaxy S21 (SM-G991U1)
+- Samsung Galaxy Note 8 (SM-N950U)
 - Samsung Galaxy Z Flip 7 (SM-F766U)
+- Samsung Galaxy Tab S9 FE (SM-X516B)
 - Samsung Galaxy Tab A11+ (SM-X230)
 - Xiaomi 12T 5G (22071212AG)
 - Xiaomi Redmi Note 14 4G (24117RN76E)
