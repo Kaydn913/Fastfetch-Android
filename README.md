@@ -40,14 +40,18 @@ These devices/platforms could also run the app, but have not been tested yet:
 ### Phones and Tablets
 
 <p>
-  <img src="screenshots/scrcpy_uLbBE72UBq.png" width="30%" alt="Fastfetch Android on Google Pixel 7 Pro">
-  <img src="screenshots/scrcpy_Tf0RQxX0ci.png" width="30%" alt="Fastfetch Android on Samsung Galaxy S22+">
+  <img src="screenshots/scrcpy_uLbBE72UBq.png" width="50%" alt="Fastfetch Android on Google Pixel 7 Pro">
+  <img src="screenshots/scrcpy_Tf0RQxX0ci.png" width="50%" alt="Fastfetch Android on Samsung Galaxy S22+">
   <img src="screenshots/image.png" width="30%" alt="Fastfetch Android on Samsung Galaxy Z Flip 7">
 </p>
 
 <p>
-  <img src="screenshots/Scrcpy.png" width="30%" alt="Fastfetch Android on Xiaomi REDMI Note 15 5G">
-  <img src="screenshots/scrcpy_DyQDBGx4Z3.png" width="30%" alt="Fastfetch Android on Samsung Galaxy Tab A11+">
+  <img src="screenshots/Screenshot_20260813-054335_Fastfetch_Android.jpg" width="30%" alt="Fastfetch Android on Samsung Galaxy Note8">
+</p>
+
+<p>
+  <img src="screenshots/Scrcpy.png" width="50%" alt="Fastfetch Android on Xiaomi REDMI Note 15 5G">
+  <img src="screenshots/scrcpy_DyQDBGx4Z3.png" width="50%" alt="Fastfetch Android on Samsung Galaxy Tab A11+">
 </p>
 
 ### Wear OS
