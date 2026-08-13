@@ -33,6 +33,42 @@ These devices/platforms could also run the app, but have not been tested yet:
 - Other Android phones
 - Maybe Android-based smart displays
 
+## Screenshots
+
+### Phones and Tablets
+
+<p>
+  <img src="screenshots/scrcpy_uLbBE72UBq.png" width="30%" alt="Fastfetch Android on Google Pixel 7 Pro">
+  <img src="screenshots/scrcpy_Tf0RQxX0ci.png" width="30%" alt="Fastfetch Android on Samsung Galaxy S22+">
+  <img src="screenshots/image.png" width="30%" alt="Fastfetch Android on Samsung Galaxy Z Flip 7">
+</p>
+
+<p>
+  <img src="screenshots/Scrcpy.png" width="30%" alt="Fastfetch Android on Xiaomi REDMI Note 15 5G">
+  <img src="screenshots/scrcpy_DyQDBGx4Z3.png" width="30%" alt="Fastfetch Android on Samsung Galaxy Tab A11+">
+</p>
+
+### Wear OS
+
+<img src="screenshots/mspaint_GEt8GgTuuP.png" width="180" alt="Fastfetch Android on Google Pixel Watch 2">
+
+### Android TV
+
+<img src="screenshots/20260813_045514.jpg" width="250" alt="Fastfetch Android on onn. Full HD Streaming Device">
+
+### VR
+
+<img src="screenshots/scrcpy_z18XvIl7rv.png" width="400" alt="Fastfetch Android on Meta Quest 3S">
+
+### Emulator
+
+<img src="screenshots/HD-Player_TVBO8sgwZQ.png" width="450" alt="Fastfetch Android running in BlueStacks">
+
+### Settings
+
+<img src="screenshots/scrcpy_HvPdc6Aavw.png" width="250" alt="Fastfetch Android settings">
+
+
 ## Bugs
 
 If you find any bugs, please let me know and tell me what device you're using and what happened.
