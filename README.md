@@ -13,11 +13,13 @@ It also includes lots of customization options!
 - Samsung Galaxy S21 (SM-G991U1)
 - Samsung Galaxy Note 8 (SM-N950U)
 - Samsung Galaxy Z Flip 7 (SM-F766U)
-- Samsung Galaxy Tab S9 FE (SM-X516B)
-- Samsung Galaxy Tab A11+ (SM-X230)
+- Realme GT 7T (RMX5085)
 - Xiaomi 12T 5G (22071212AG)
 - Xiaomi Redmi Note 14 4G (24117RN76E)
 - Xiaomi Redmi Note 15 5G (25098RA98G)
+- Samsung Galaxy Tab S9 FE (SM-X516B)
+- Samsung Galaxy Tab A11+ (SM-X230)
+- Lenovo Tab M10 HD (2nd Gen) (TB-X306F)
 - Meta Quest 3S
 - Google Pixel Watch 2
 - onn. Full HD Streaming Device
