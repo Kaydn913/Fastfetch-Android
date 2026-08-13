@@ -8,7 +8,7 @@ It also includes lots of customization options!
 
 # Tested Devices
 
-## Phones
+### Phones
 
 - Motorola Moto Z4
 - Google Pixel 7 Pro
@@ -21,25 +21,25 @@ It also includes lots of customization options!
 - Xiaomi Redmi Note 14 4G (24117RN76E)
 - Xiaomi Redmi Note 15 5G (25098RA98G)
 
-## Tablets
+### Tablets
 
 - Samsung Galaxy Tab A11+ (SM-X230)
 - Samsung Galaxy Tab S9 FE (SM-X516B)
 - Lenovo Tab M10 HD (2nd Gen) (TB-X306F)
 
-## VR headsets
+### VR headsets
 
 - Meta Quest 3S
 
-## Watches
+### Watches
 
 - Google Pixel Watch 2
 
-## TV Boxes
+### TV Boxes
 
 - onn. Full HD Streaming Device
 
-## Emulators
+### Emulators
 
 - BlueStacks emulator
 
