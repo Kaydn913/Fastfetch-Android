@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialog_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:paddingStart="28dp"
+    android:paddingTop="24dp"
+    android:paddingEnd="28dp"
+    android:paddingBottom="26dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/dialog_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/dialog_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:textColor="#BDBDBD"
+            android:textSize="9sp" />
+
+        <EditText
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/username_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:hint="Username"
+            android:inputType="text"
+            android:maxLines="1"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#777777"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/username_preview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:fontFamily="@font/quicksand_regular"
+            android:textColor="#00D2FF"
+            android:textSize="9sp" />
+
+        <TextView
+            android:fontFamily="@font/quicksand_regular"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Preset"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/preset_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="42dp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/show_logo_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="ASCII logo"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
+        <TextView
+            android:fontFamily="@font/quicksand_regular"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Accent"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/accent_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="42dp" />
+
+        <TextView
+            android:fontFamily="@font/quicksand_regular"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Info font"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/font_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="42dp" />
+
+        <TextView
+            android:fontFamily="@font/quicksand_regular"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Refresh"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/refresh_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="42dp" />
+
+        <TextView
+            android:fontFamily="@font/quicksand_regular"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Modules"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_display_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Display"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_hardware_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Hardware"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_graphics_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Graphics"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_memory_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Memory"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_network_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Network"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_power_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Power"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_android_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Android"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_security_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Security"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_misc_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Misc"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp" />
+
+        <TextView
+            android:fontFamily="@font/quicksand_regular"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Module order"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/module_order_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top|start"
+            android:inputType="textMultiLine"
+            android:minLines="3"
+            android:textColor="#FFFFFF"
+            android:textSize="8sp" />
+
+        <Button
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/save_button"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:text="Save"
+            android:textAllCaps="false"
+            android:textSize="10sp" />
+
+        <Button
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/cancel_button"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:text="Cancel"
+            android:textAllCaps="false"
+            android:textSize="10sp" />
+
+        <Button
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/reset_button"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:text="Reset"
+            android:textAllCaps="false"
+            android:textSize="10sp" />
+
+    </LinearLayout>
+</ScrollView>
