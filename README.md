@@ -8,21 +8,39 @@ It also includes lots of customization options!
 
 ## Tested Devices
 
+## Phones
+
 - Google Pixel 7 Pro
+- Motorola Moto Z4
+- Realme GT 7T (RMX5085)
+- Xiaomi 12T 5G (22071212AG)
 - Samsung Galaxy S22+ (SM-S906U1)
 - Samsung Galaxy S21 (SM-G991U1)
 - Samsung Galaxy Note 8 (SM-N950U)
 - Samsung Galaxy Z Flip 7 (SM-F766U)
-- Realme GT 7T (RMX5085)
-- Xiaomi 12T 5G (22071212AG)
 - Xiaomi Redmi Note 14 4G (24117RN76E)
 - Xiaomi Redmi Note 15 5G (25098RA98G)
+
+## Tablets
+
 - Samsung Galaxy Tab S9 FE (SM-X516B)
 - Samsung Galaxy Tab A11+ (SM-X230)
 - Lenovo Tab M10 HD (2nd Gen) (TB-X306F)
+
+## VR headsets
+
 - Meta Quest 3S
+
+## Watches
+
 - Google Pixel Watch 2
+
+## TV Boxes
+
 - onn. Full HD Streaming Device
+
+## Emulators
+
 - BlueStacks emulator
 
 ## Other Devices
