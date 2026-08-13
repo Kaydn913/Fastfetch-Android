@@ -6,7 +6,7 @@ Fastfetch Android gives you detailed information about your Android device and i
 
 It also includes lots of customization options!
 
-## Tested Devices
+# Tested Devices
 
 ## Phones
 
