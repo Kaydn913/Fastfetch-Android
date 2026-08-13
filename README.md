@@ -15,6 +15,7 @@ It also includes lots of customization options!
 - Samsung Galaxy Tab A11+ (SM-X230)
 - Xiaomi 12T 5G (22071212AG)
 - Xiaomi Redmi Note 14 4G (24117RN76E)
+- Xiaomi Redmi Note 15 5G (25098RA98G)
 - Meta Quest 3S
 - Google Pixel Watch 2
 - onn. Full HD Streaming Device
