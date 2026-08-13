@@ -47,7 +47,7 @@ These devices/platforms could also run the app, but have not been tested yet:
 </p>
 
 <p>
-  <img src="screenshots/Scrcpy.png" width="50%" alt="Fastfetch Android on Xiaomi REDMI Note 15 5G">
+  <img src="screenshots/Scrcpy.png" width="65%" alt="Fastfetch Android on Xiaomi REDMI Note 15 5G">
   <img src="screenshots/scrcpy_DyQDBGx4Z3.png" width="50%" alt="Fastfetch Android on Samsung Galaxy Tab A11+">
 </p>
 
