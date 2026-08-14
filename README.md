@@ -22,6 +22,7 @@ It also includes lots of customization options!
 
 - Samsung Galaxy S9 (SM-G960U)
 - Samsung Galaxy S21 (SM-G991U1)
+- Samsung Galaxy A20e (SM-A202F)
 - Samsung Galaxy S22+ (SM-S906U1)
 - Samsung Galaxy Note 8 (SM-N950U)
 - Samsung Galaxy Z Flip 7 (SM-F766U)
