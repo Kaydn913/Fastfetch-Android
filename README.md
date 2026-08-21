@@ -38,7 +38,7 @@ It also includes lots of customization options!
 - Xiaomi Redmi Note 14 4G (24117RN76E)
 - Xiaomi Redmi Note 15 5G (25098RA98G)
 
-#### Blu 
+#### BLU
 
 - BLU View 5 (B160V)
 
