@@ -6,19 +6,19 @@ Fastfetch Android gives you detailed information about your Android device and i
 
 It also includes lots of customization options!
 
-# Tested Devices
+## Tested Devices
 
-## Phones
+### Phones
 
-### Motorola
+#### Motorola
 
 - Motorola Moto Z4
 - Motorola moto g stylus - 2025
 
-### Google Pixel
+#### Google Pixel
 - Google Pixel 7 Pro
 
-### Samsung
+#### Samsung
 
 - Samsung Galaxy S9 (SM-G960U)
 - Samsung Galaxy S21 (SM-G991U1)
@@ -27,52 +27,65 @@ It also includes lots of customization options!
 - Samsung Galaxy Note 8 (SM-N950U)
 - Samsung Galaxy Z Flip 7 (SM-F766U)
 
-### Realme
+#### Realme
 
 - Realme GT 7T (RMX5085)
 
-### Xiaomi
+#### Xiaomi
 
 - Xiaomi 12T 5G (22071212AG)
+- Xiaomi Redmi 9A (M2006C3LG)
 - Xiaomi Redmi Note 14 4G (24117RN76E)
 - Xiaomi Redmi Note 15 5G (25098RA98G)
 
-## Tablets
+#### Blu 
 
-### Samsung
+- BLU View 5 (B160V)
+
+### Tablets
+
+#### Samsung
 
 - Samsung Galaxy Tab A11+ (SM-X230)
 - Samsung Galaxy Tab S9 FE (SM-X516B)
 
-### Lenovo
+#### Lenovo
 
 - Lenovo Tab M10 HD (2nd Gen) (TB-X306F)
 
-## VR headsets
+#### Xiaomi
 
-### Meta
+- Xiaomi Redmi Pad SE 8.7 Wi-Fi (24075RP89G)
+
+### VR headsets
+
+#### Meta
 
 - Meta Quest 3S
 
-## Watches
+### Watches
 
-### Google Pixel
+#### Google Pixel
 
 - Google Pixel Watch 2
 
-## TV Boxes
+### TV Boxes
 
-### onn.
+#### onn.
 
 - onn. Full HD Streaming Device
 
-## Emulators
+### Emulators
 
-### Bluestacks
+#### Bluestacks
 
 - BlueStacks emulator
 
-## Other Devices
+#### LDPlayer
+
+- LDPlayer emulator
+
+### Other Devices
 
 These devices/platforms could also run the app, but have not been tested yet:
 
