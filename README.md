@@ -94,6 +94,12 @@ It also includes lots of customization options!
   - Android 9.0 (arm64)
   - Android 11.0 (arm64)
 
+### Android on PC
+
+#### Bliss OS
+
+- Bliss OS 14.10.3 (Android 11, x86_64, VMware)
+
 ### Other Devices
 
 These devices/platforms could also run the app, but have not been tested yet:
