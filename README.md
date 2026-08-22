@@ -86,6 +86,14 @@ It also includes lots of customization options!
 
 - LDPlayer emulator
 
+#### Virtual Master
+
+- Virtual Master (Detection not implemented yet)
+  - Android 7.1.2 (arm32)
+  - Android 7.1.2 (arm64)
+  - Android 9.0 (arm64)
+  - Android 11.0 (arm64)
+
 ### Other Devices
 
 These devices/platforms could also run the app, but have not been tested yet:
