@@ -98,7 +98,10 @@ It also includes lots of customization options!
 
 #### Bliss OS
 
-- Bliss OS 14.10.3 (Android 11, x86_64, VMware)
+- Bliss OS 14.10.3 (Android 11, x86_64)
+  - VMware
+  - Native hardware (MSI Thin A15 B7UC-473US)
+  - Device type currently reports as Tablet
 
 ### Other Devices
 
