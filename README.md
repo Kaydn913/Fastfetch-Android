@@ -17,8 +17,6 @@ It currently supports **Android 7.1 (API 25) and above** on `arm64-v8a`, `armeab
 
 <p align="center">
   <img src="screenshots/scrcpy_uLbBE72UBq.png" width="31%" alt="Fastfetch Android on Google Pixel 7 Pro">
-  <img src="screenshots/mspaint_GEt8GgTuuP.png" width="18%" alt="Fastfetch Android on Google Pixel Watch 2">
-  <img src="screenshots/scrcpy_z18XvIl7rv.png" width="42%" alt="Fastfetch Android on Meta Quest 3S">
 </p>
 
 ## Features
