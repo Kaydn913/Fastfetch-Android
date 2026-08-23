@@ -15,10 +15,6 @@ Fastfetch Android brings detailed, Fastfetch-style device information to Android
 
 It currently supports **Android 7.1 (API 25) and above** on `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
 
-<p align="center">
-  <img src="screenshots/scrcpy_uLbBE72UBq.png" width="31%" alt="Fastfetch Android on Google Pixel 7 Pro">
-</p>
-
 ## Features
 
 Fastfetch Android can report information including:
