@@ -1,24 +1,85 @@
 # Fastfetch Android
 
-I am very happy to announce Fastfetch-style system information natively on Android!
+<p align="center">
+  <strong>Fastfetch-style system information, natively on Android.</strong>
+</p>
 
-Fastfetch Android gives you detailed information about your Android device and is designed to run on just about any Android device. It currently supports Android 7.1 and above, along with `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
+<p align="center">
+  <img alt="Android 7.1+" src="https://img.shields.io/badge/Android-7.1%2B-3DDC84?logo=android&logoColor=white">
+  <img alt="Version 1.0" src="https://img.shields.io/badge/version-1.0-blue">
+  <img alt="Supported ABIs" src="https://img.shields.io/badge/ABIs-arm64%20%7C%20arm32%20%7C%20x86%20%7C%20x86__64-informational">
+  <img alt="Kotlin and C++" src="https://img.shields.io/badge/Kotlin%20%2B%20C%2B%2B-native-7F52FF?logo=kotlin&logoColor=white">
+</p>
 
-It also includes lots of customization options!
+Fastfetch Android brings detailed, Fastfetch-style device information to Android with a native app that works across phones, tablets, watches, TVs, VR headsets, emulators, and Android-on-PC setups.
+
+It currently supports **Android 7.1 (API 25) and above** on `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
+
+<p align="center">
+  <img src="screenshots/scrcpy_uLbBE72UBq.png" width="31%" alt="Fastfetch Android on Google Pixel 7 Pro">
+  <img src="screenshots/mspaint_GEt8GgTuuP.png" width="18%" alt="Fastfetch Android on Google Pixel Watch 2">
+  <img src="screenshots/scrcpy_z18XvIl7rv.png" width="42%" alt="Fastfetch Android on Meta Quest 3S">
+</p>
+
+## Features
+
+Fastfetch Android can report information including:
+
+- Device, Android version, build, kernel, uptime, architecture, and runtime
+- Display resolution, refresh rate, density, and orientation
+- SoC, CPU, GPU, OpenGL ES, Vulkan, RAM, swap, and storage
+- Network information including IPv4, IPv6, and DNS when available
+- Battery status, temperature, voltage, power source, and thermal information
+- SELinux, bootloader state, Verified Boot, and root status
+- Device features such as Wi-Fi, Bluetooth, camera, touch, and GPS
+- Multiple output modes, including compact, detailed, minimal, and watch-friendly layouts
+- Customizable modules, output order, fonts, Android logo visibility, and automatic refresh
+- Copy and share support for generated system information
+
+## Download / Installation
+
+Check the [GitHub Releases page](https://github.com/Kaydn913/Fastfetch-Android/releases) for packaged builds.
+
+To build it yourself, clone the repository, open it in Android Studio, and build the `app` module.
+
+### Requirements
+
+- Android 7.1 / API 25 or newer
+- One of the following ABIs:
+  - `arm64-v8a`
+  - `armeabi-v7a`
+  - `x86`
+  - `x86_64`
+
+## Supported Platforms
+
+| Platform | Status |
+| --- | --- |
+| Android phones | Tested |
+| Android tablets | Tested |
+| Wear OS watches | Tested |
+| Android / Google TV | Tested |
+| Android-based VR headsets | Tested |
+| Android emulators | Tested |
+| Android on PC | Tested |
+| Android Automotive | Not tested yet |
+| Android-based smart displays | Not tested yet |
 
 ## Tested Devices
 
-### Phones
+<details open>
+<summary><strong>Phones</strong></summary>
 
-#### Motorola
+### Motorola
 
 - Motorola Moto Z4
 - Motorola moto g stylus - 2025
 
-#### Google Pixel
+### Google Pixel
+
 - Google Pixel 7 Pro
 
-#### Samsung
+### Samsung
 
 - Samsung Galaxy S9 (SM-G960U)
 - Samsung Galaxy S21 (SM-G991U1)
@@ -28,146 +89,140 @@ It also includes lots of customization options!
 - Samsung Galaxy Z Flip 7 (SM-F766U)
 - Samsung Galaxy Z Fold2 5G (SM-F916B)
 
-#### Realme
+### Realme
 
 - Realme GT 7T (RMX5085)
 
-#### Xiaomi
+### Xiaomi
 
 - Xiaomi 12T 5G (22071212AG)
 - Xiaomi Redmi 9A (M2006C3LG)
 - Xiaomi Redmi Note 14 4G (24117RN76E)
 - Xiaomi Redmi Note 15 5G (25098RA98G)
 
-#### BLU
+### BLU
 
 - BLU View 5 (B160V)
 
-### Tablets
+</details>
 
-#### Samsung
+<details>
+<summary><strong>Tablets</strong></summary>
+
+### Samsung
 
 - Samsung Galaxy Tab A11+ (SM-X230)
 - Samsung Galaxy Tab S9 FE (SM-X516B)
 
-#### Lenovo
+### Lenovo
 
 - Lenovo Tab M10 HD (2nd Gen) (TB-X306F)
 
-#### Xiaomi
+### Xiaomi
 
 - Xiaomi Redmi Pad SE 8.7 Wi-Fi (24075RP89G)
 
-### VR headsets
+</details>
 
-#### Meta
+<details>
+<summary><strong>VR headsets, watches, and TV devices</strong></summary>
+
+### VR headsets
 
 - Meta Quest 3S
 
 ### Watches
 
-#### Google Pixel
-
 - Google Pixel Watch 2
 
-### TV Boxes
-
-#### onn.
+### TV boxes
 
 - onn. Full HD Streaming Device
 
-### Emulators
+</details>
 
-#### Bluestacks
+<details>
+<summary><strong>Emulators</strong></summary>
+
+### BlueStacks
 
 - BlueStacks emulator
 
-#### LDPlayer
+### LDPlayer
 
 - LDPlayer emulator
 
-#### Virtual Master
+### Virtual Master
 
-- Virtual Master (Detection not implemented yet)
-  - Android 7.1.2 (arm32)
-  - Android 7.1.2 (arm64)
-  - Android 9.0 (arm64)
-  - Android 11.0 (arm64)
+- Android 7.1.2 (arm32)
+- Android 7.1.2 (arm64)
+- Android 9.0 (arm64)
+- Android 11.0 (arm64)
 
-### Android on PC
+> Virtual Master-specific detection is not implemented yet.
 
-#### Bliss OS
+</details>
+
+<details>
+<summary><strong>Android on PC</strong></summary>
+
+### Bliss OS
 
 - Bliss OS 14.10.3 (Android 11, x86_64)
   - VMware
   - Native hardware (MSI Thin A15 B7UC-473US)
-  - Device type currently reports as Tablet because PC/laptop detection has not been implemented yet
 
-#### LineageOS TV x86_64
+### LineageOS TV x86_64
 
 - LineageOS 21 (Android 14, x86_64, VMware)
 
+> Native Bliss OS currently reports its device type as `Tablet` because PC/laptop detection has not been implemented yet.
+
+</details>
+
 ### Other Devices
 
-These devices/platforms could also run the app, but have not been tested yet:
+These devices and platforms may also work, but have not been tested yet:
 
 - Android Automotive
 - Other Android-based VR headsets
-- Other Android/Google TV devices
+- Other Android / Google TV devices
 - Other Android watches
 - Other Android tablets
 - Other Android phones
-- Maybe Android-based smart displays
+- Android-based smart displays
 
 ## Screenshots
 
-### Phones and Tablets
-
 <p>
-  <img src="screenshots/scrcpy_uLbBE72UBq.png" width="50%" alt="Fastfetch Android on Google Pixel 7 Pro">
-  <img src="screenshots/scrcpy_Tf0RQxX0ci.png" width="50%" alt="Fastfetch Android on Samsung Galaxy S22+">
-  <img src="screenshots/image.png" width="50%" alt="Fastfetch Android on Samsung Galaxy Z Flip 7">
-  <img src="screenshots/Screenshot_20260813-054335_Fastfetch_Android.jpg" width="65%" alt="Fastfetch Android on Samsung Galaxy Note8">
+  <img src="screenshots/scrcpy_uLbBE72UBq.png" width="31%" alt="Fastfetch Android on Google Pixel 7 Pro">
+  <img src="screenshots/scrcpy_Tf0RQxX0ci.png" width="31%" alt="Fastfetch Android on Samsung Galaxy S22+">
+  <img src="screenshots/scrcpy_DyQDBGx4Z3.png" width="31%" alt="Fastfetch Android on Samsung Galaxy Tab A11+">
 </p>
 
-<p>
-  <img src="screenshots/Scrcpy.png" width="65%" alt="Fastfetch Android on Xiaomi REDMI Note 15 5G">
-  <img src="screenshots/scrcpy_DyQDBGx4Z3.png" width="50%" alt="Fastfetch Android on Samsung Galaxy Tab A11+">
-</p>
+More screenshots are available in the **[full screenshot gallery](SCREENSHOTS.md)**, including Wear OS, Android TV, VR, emulators, and the settings interface.
 
-### Wear OS
+## Known Limitations / Roadmap
 
-<img src="screenshots/mspaint_GEt8GgTuuP.png" width="180" alt="Fastfetch Android on Google Pixel Watch 2">
+- Virtual Master-specific emulator detection is not implemented yet.
+- Native Android-on-PC installations can currently be classified as tablets.
+- Some security or system information may be restricted by Android or the device manufacturer and may appear as unavailable or unknown.
+- More Android form factors and emulator environments can be added as they are tested.
 
-### Android TV
+## Bug Reports
 
-<img src="screenshots/20260813_045514.jpg" width="250" alt="Fastfetch Android on onn. Full HD Streaming Device">
+If you find a bug, please report what happened and include your device model and Android version. Screenshots or logs are also helpful when available.
 
-### VR
+You can report bugs through the repository's [Issues page](https://github.com/Kaydn913/Fastfetch-Android/issues).
 
-<img src="screenshots/scrcpy_z18XvIl7rv.png" width="400" alt="Fastfetch Android on Meta Quest 3S">
+## Device Testing
 
-### Emulator
+Want to try Fastfetch Android on something that is not listed above? Go right ahead!
 
-<img src="screenshots/HD-Player_TVBO8sgwZQ.png" width="450" alt="Fastfetch Android running in BlueStacks">
+If it works, let me know what device or platform you tested it on and I can add it to the tested devices list.
 
-### Settings
+## Suggestions / Contributions
 
-<img src="screenshots/scrcpy_HvPdc6Aavw.png" width="250" alt="Fastfetch Android settings">
+Suggestions for new information, customization options, device support, and other improvements are always welcome.
 
-
-## Bugs
-
-If you find any bugs, please let me know and tell me what device you're using and what happened.
-
-## Testing
-
-If you want to test Fastfetch Android on another device, go right ahead!
-
-If it works, let me know what device you tested it on and I'll add it to the tested devices list.
-
-## Suggestions
-
-If you have any suggestions for what I should add next, just let me know! I'll add them eventually.
-
-Thanks!
+Thanks for checking out Fastfetch Android!
