@@ -175,7 +175,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 
 - LineageOS 21 (Android 14, x86_64, VMware)
 
-> Native Bliss OS and ChromeOS ARCVM currently report their device type as `Tablet` because PC/laptop detection has not been implemented yet.
+> Native Bliss OS and ChromeOS ARCVM currently report their device type as `Tablet` or `Phone` because PC/laptop detection has not been implemented yet.
 
 </details>
 
