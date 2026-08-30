@@ -135,8 +135,9 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 
 ### Smart displays
 
-- Amazon Echo Show 5 (2nd Gen) — Fire OS 6.5.7.1 (Android 7.1.2)
-- Amazon Echo Show 5 (2nd Gen) — LineageOS 18.1 (Android 11)
+- Amazon Echo Show 5 (2nd Gen)
+  - Fire OS 6.5.7.1 (Android 7.1.2)
+  - LineageOS 18.1 (Android 11)
 
 </details>
 
