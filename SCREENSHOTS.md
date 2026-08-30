@@ -74,6 +74,14 @@ Alternate capture:
 
 <img src="screenshots/HD-Player_TVBO8sgwZQ.png" width="650" alt="Fastfetch Android running in BlueStacks">
 
+## Android on PC
+
+### ChromeOS / ARCVM — HP Chromebook 11 G9 EE
+
+Extended view running under ChromeOS's Android 13 ARCVM environment:
+
+<img src="screenshots/chromebook_arcvm_extended.webp" width="900" alt="Fastfetch Android extended view running in ChromeOS ARCVM on an HP Chromebook 11 G9 EE">
+
 ## Settings
 
 Current settings interface:

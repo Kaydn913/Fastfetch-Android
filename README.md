@@ -166,11 +166,16 @@ To build it yourself, clone the repository, open it in Android Studio, and build
   - VMware
   - Native hardware (MSI Thin A15 B7UC-473US)
 
+### ChromeOS / ARCVM
+
+- ChromeOS Android 13 (x86_64, ARCVM)
+  - Native hardware (HP Chromebook 11 G9 EE / `dedede`)
+
 ### LineageOS TV x86_64
 
 - LineageOS 21 (Android 14, x86_64, VMware)
 
-> Native Bliss OS currently reports its device type as `Tablet` because PC/laptop detection has not been implemented yet.
+> Native Bliss OS and ChromeOS ARCVM currently report their device type as `Tablet` because PC/laptop detection has not been implemented yet.
 
 </details>
 
@@ -194,12 +199,12 @@ These devices and platforms may also work, but have not been tested yet:
   <img src="screenshots/scrcpy_DyQDBGx4Z3.png" width="31%" alt="Fastfetch Android on Samsung Galaxy Tab A11+">
 </p>
 
-More screenshots are available in the **[full screenshot gallery](SCREENSHOTS.md)**, including Wear OS, Android TV, VR, emulators, and the settings interface.
+More screenshots are available in the **[full screenshot gallery](SCREENSHOTS.md)**, including Wear OS, Android TV, VR, emulators, Android on PC, and the settings interface.
 
 ## Known Limitations / Roadmap
 
 - Virtual Master-specific emulator detection is not implemented yet.
-- Native Android-on-PC installations can currently be classified as tablets.
+- Native Android-on-PC installations and ChromeOS ARCVM can currently be classified as tablets.
 - Some security or system information may be restricted by Android or the device manufacturer and may appear as unavailable or unknown.
 - More Android form factors and emulator environments can be added as they are tested.
 
