@@ -57,7 +57,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 | Android emulators | Tested |
 | Android on PC | Tested |
 | Android Automotive | Not tested yet |
-| Android-based smart displays | Not tested yet |
+| Android-based smart displays | Tested |
 
 ## Tested Devices
 
@@ -119,7 +119,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 </details>
 
 <details>
-<summary><strong>VR headsets, watches, and TV devices</strong></summary>
+<summary><strong>VR headsets, watches, TV devices, and smart displays</strong></summary>
 
 ### VR headsets
 
@@ -132,6 +132,11 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 ### TV boxes
 
 - onn. Full HD Streaming Device
+
+### Smart displays
+
+- Amazon Echo Show 5 (2nd Gen) — Fire OS 6.5.7.1 (Android 7.1.2)
+- Amazon Echo Show 5 (2nd Gen) — LineageOS 18.1 (Android 11)
 
 </details>
 
@@ -189,7 +194,6 @@ These devices and platforms may also work, but have not been tested yet:
 - Other Android watches
 - Other Android tablets
 - Other Android phones
-- Android-based smart displays
 
 ## Screenshots
 
