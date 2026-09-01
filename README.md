@@ -73,6 +73,10 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 
 - Google Pixel 7 Pro
 
+### OnePlus
+
+- OnePlus 9 Pro (LE2127)
+
 ### Samsung
 
 - Samsung Galaxy S9 (SM-G960U)
