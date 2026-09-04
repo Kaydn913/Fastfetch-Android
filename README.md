@@ -133,7 +133,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 
 - Google Pixel Watch 2
 
-### TV boxes
+### TV boxes/sticks
 
 - onn. Full HD Streaming Device
 
