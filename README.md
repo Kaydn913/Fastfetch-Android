@@ -62,68 +62,80 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 ## Tested Devices
 
 <details open>
-<summary><strong>Phones</strong></summary>
-
-### Motorola
-
-- Motorola Moto Z4
-- Motorola moto g stylus - 2025
-
-### Google Pixel
-
-- Google Pixel 7 Pro
-
-### OnePlus
-
-- OnePlus 9 Pro (LE2127)
-
-### Samsung
-
-- Samsung Galaxy S9 (SM-G960U)
-- Samsung Galaxy S21 (SM-G991U1)
-- Samsung Galaxy A20e (SM-A202F)
-- Samsung Galaxy S22+ (SM-S906U1)
-- Samsung Galaxy Note 8 (SM-N950U)
-- Samsung Galaxy Z Flip 7 (SM-F766U)
-- Samsung Galaxy Z Fold2 5G (SM-F916B)
-
-### Realme
-
-- Realme GT 7T (RMX5085)
-
-### Xiaomi
-
-- Xiaomi 12T 5G (22071212AG)
-- Xiaomi Redmi 9A (M2006C3LG)
-- Xiaomi Redmi Note 14 4G (24117RN76E)
-- Xiaomi Redmi Note 15 5G (25098RA98G)
+<summary><strong>Phones</strong> (17)</summary>
 
 ### BLU
 
-- BLU View 5 (B160V)
+- BLU View 5 (`B160V`)
 
-</details>
+### Google
 
-<details>
-<summary><strong>Tablets</strong></summary>
+- Pixel 7 Pro
+
+### Motorola
+
+- **Moto G**
+  - Moto G Stylus (2025)
+- **Moto Z**
+  - Moto Z4
+
+### OnePlus
+
+- OnePlus 9 Pro (`LE2127`)
+
+### Realme
+
+- Realme GT 7T (`RMX5085`)
 
 ### Samsung
 
-- Samsung Galaxy Tab A11+ (SM-X230)
-- Samsung Galaxy Tab S9 FE (SM-X516B)
-
-### Lenovo
-
-- Lenovo Tab M10 HD (2nd Gen) (TB-X306F)
+- **Galaxy S series**
+  - Galaxy S9 (`SM-G960U`)
+  - Galaxy S21 (`SM-G991U1`)
+  - Galaxy S22+ (`SM-S906U1`)
+- **Galaxy A series**
+  - Galaxy A20e (`SM-A202F`)
+- **Galaxy Z Fold series**
+  - Galaxy Z Fold2 5G (`SM-F916B`)
+- **Galaxy Z Flip series**
+  - Galaxy Z Flip 7 (`SM-F766U`)
+- **Galaxy Note series**
+  - Galaxy Note 8 (`SM-N950U`)
 
 ### Xiaomi
 
-- Xiaomi Redmi Pad SE 8.7 Wi-Fi (24075RP89G)
+- **Xiaomi**
+  - Xiaomi 12T 5G (`22071212AG`)
+- **Redmi**
+  - Redmi 9A (`M2006C3LG`)
+- **Redmi Note**
+  - Redmi Note 14 4G (`24117RN76E`)
+  - Redmi Note 15 5G (`25098RA98G`)
 
 </details>
 
 <details>
-<summary><strong>VR headsets, watches, TV devices, and smart displays</strong></summary>
+<summary><strong>Tablets</strong> (4)</summary>
+
+### Lenovo
+
+- Tab M10 HD (2nd Gen) (`TB-X306F`)
+
+### Samsung
+
+- **Galaxy Tab S series**
+  - Galaxy Tab S9 FE (`SM-X516B`)
+- **Galaxy Tab A series**
+  - Galaxy Tab A11+ (`SM-X230`)
+
+### Xiaomi
+
+- Redmi Pad SE 8.7 Wi-Fi (`24075RP89G`)
+
+</details>
+
+<details>
+<summary><strong>VR headsets, watches, TV devices, and smart displays</strong> (4)</summary>
 
 ### VR headsets
 
@@ -146,44 +158,30 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 </details>
 
 <details>
-<summary><strong>Emulators</strong></summary>
+<summary><strong>Emulators</strong> (3)</summary>
 
-### BlueStacks
-
-- BlueStacks emulator
-
-### LDPlayer
-
-- LDPlayer emulator
-
-### Virtual Master
-
-- Android 7.1.2 (arm32)
-- Android 7.1.2 (arm64)
-- Android 9.0 (arm64)
-- Android 11.0 (arm64)
+- BlueStacks
+- LDPlayer
+- Virtual Master
+  - Android 7.1.2 (arm32)
+  - Android 7.1.2 (arm64)
+  - Android 9.0 (arm64)
+  - Android 11.0 (arm64)
 
 > Virtual Master-specific detection is not implemented yet.
 
 </details>
 
 <details>
-<summary><strong>Android on PC</strong></summary>
+<summary><strong>Android on PC</strong> (3)</summary>
 
-### Bliss OS
-
-- Bliss OS 14.10.3 (Android 11, x86_64)
+- **Bliss OS 14.10.3** (Android 11, x86_64)
   - VMware
   - Native hardware (MSI Thin A15 B7UC-473US)
-
-### ChromeOS / ARCVM
-
-- ChromeOS Android 13 (x86_64, ARCVM)
+- **ChromeOS ARCVM** (Android 13, x86_64)
   - Native hardware (HP Chromebook 11 G9 EE / `dedede`)
-
-### LineageOS TV x86_64
-
-- LineageOS 21 (Android 14, x86_64, VMware)
+- **LineageOS 21 TV** (Android 14, x86_64)
+  - VMware
 
 > Native Bliss OS and ChromeOS ARCVM currently report their device type as `Tablet` or `Phone` because PC/laptop detection has not been implemented yet.
 
