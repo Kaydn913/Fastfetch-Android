@@ -14,6 +14,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
@@ -49,6 +50,7 @@ import androidx.core.widget.TextViewCompat
 import com.kaydn.fastfetchandroid.databinding.ActivityMainBinding
 import java.net.Inet4Address
 import java.net.Inet6Address
+import java.net.InetAddress
 import java.nio.file.Files
 import java.util.Locale
 import java.util.concurrent.ExecutorService
@@ -865,7 +867,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (mode == MODE_DETAILED) {
-            lines.add("Process: ${getProcessBitness()}")
+            // (Process bitness is shown under Android, not here, so it
+            // doesn't appear twice in detailed mode.)
             lines.add("Sensors: ${getSensorCount()}")
         }
 
@@ -1208,12 +1211,17 @@ class MainActivity : AppCompatActivity() {
 
                     add("Build: ${Build.DISPLAY}")
 
+                    // Process bitness matters on devices like the onn
+                    // stick: a 64-bit-capable CPU (armv8l) running a
+                    // 32-bit userspace otherwise looks contradictory.
+                    val process = "Process: ${getProcessBitness()}"
+
                     if (nativeArchitecture != null) {
                         add(
-                            "Architecture: $nativeArchitecture | ABI: $allAbis"
+                            "Architecture: $nativeArchitecture | ABI: $allAbis | $process"
                         )
                     } else {
-                        add("ABI: $allAbis")
+                        add("ABI: $allAbis | $process")
                     }
 
                     add(getRuntimeLine())
@@ -1719,11 +1727,7 @@ class MainActivity : AppCompatActivity() {
             features.add("BLE")
         }
 
-        if (
-            pm.hasSystemFeature(
-                PackageManager.FEATURE_CAMERA_ANY
-            )
-        ) {
+        if (hasCamera()) {
             features.add("Camera")
         }
 
@@ -1747,6 +1751,28 @@ class MainActivity : AppCompatActivity() {
             "None reported"
         } else {
             features.joinToString(", ")
+        }
+    }
+
+    /**
+     * FEATURE_CAMERA_ANY is also declared by devices that only support
+     * plugging in a USB webcam (the onn Google TV stick reports it with
+     * zero cameras), so count the cameras that actually exist. This
+     * also picks up a USB webcam as soon as one is plugged in.
+     */
+    private fun hasCamera(): Boolean {
+        return try {
+            getSystemService(CameraManager::class.java)
+                .cameraIdList
+                .isNotEmpty()
+        } catch (_: Exception) {
+            // Camera service unavailable: fall back to built-in cameras
+            // only, never "external camera supported".
+            packageManager.hasSystemFeature(
+                PackageManager.FEATURE_CAMERA
+            ) || packageManager.hasSystemFeature(
+                PackageManager.FEATURE_CAMERA_FRONT
+            )
         }
     }
 
@@ -1908,16 +1934,42 @@ class MainActivity : AppCompatActivity() {
                             !linkAddress.address.isLinkLocalAddress
                 }
 
+        // A global IPv6 address is unique to the home network, so it can
+        // be hidden for screenshots and copied output.
+        val hideIpv6 = getHideIpv6()
+
         if (ipv6 != null) {
-            lines.add(
-                "IPv6: ${ipv6.address.hostAddress}/${ipv6.prefixLength}"
-            )
+            if (hideIpv6) {
+                lines.add("IPv6: Hidden")
+            } else {
+                lines.add(
+                    "IPv6: ${ipv6.address.hostAddress}/${ipv6.prefixLength}"
+                )
+            }
         }
 
         val dns =
             properties.dnsServers
                 .take(2)
-                .mapNotNull { it.hostAddress }
+                .mapNotNull { server ->
+                    if (
+                        hideIpv6 &&
+                        ipv6 != null &&
+                        server is Inet6Address &&
+                        isInSamePrefix(
+                            server,
+                            ipv6.address,
+                            ipv6.prefixLength
+                        )
+                    ) {
+                        // The router advertising itself as DNS: its
+                        // address shares the home network's prefix and
+                        // would leak what the IPv6 line hides.
+                        "Hidden"
+                    } else {
+                        server.hostAddress
+                    }
+                }
 
         if (dns.isNotEmpty()) {
             lines.add(
@@ -1926,6 +1978,40 @@ class MainActivity : AppCompatActivity() {
         }
 
         return lines
+    }
+
+    /** True if both addresses share their first [prefixLength] bits. */
+    private fun isInSamePrefix(
+        a: InetAddress,
+        b: InetAddress,
+        prefixLength: Int
+    ): Boolean {
+        val x = a.address
+        val y = b.address
+
+        if (x.size != y.size) {
+            return false
+        }
+
+        val bits = prefixLength.coerceIn(0, x.size * 8)
+        val fullBytes = bits / 8
+
+        for (i in 0 until fullBytes) {
+            if (x[i] != y[i]) {
+                return false
+            }
+        }
+
+        val remainingBits = bits % 8
+
+        if (remainingBits == 0) {
+            return true
+        }
+
+        val mask = (0xFF shl (8 - remainingBits)) and 0xFF
+
+        return (x[fullBytes].toInt() and mask) ==
+                (y[fullBytes].toInt() and mask)
     }
 
     // ==================================================
@@ -2371,6 +2457,14 @@ class MainActivity : AppCompatActivity() {
             )
     }
 
+    private fun getHideIpv6(): Boolean {
+        return prefs()
+            .getBoolean(
+                KEY_HIDE_IPV6,
+                false
+            )
+    }
+
     private fun getAccentName(): String {
         return prefs()
             .getString(
@@ -2545,6 +2639,10 @@ class MainActivity : AppCompatActivity() {
         val showLogoSwitch =
             dialog.findViewById<Switch>(
                 R.id.show_logo_switch
+            )
+        val hideIpv6Switch =
+            dialog.findViewById<Switch>(
+                R.id.hide_ipv6_switch
             )
 
         val accentSpinner =
@@ -2733,6 +2831,9 @@ class MainActivity : AppCompatActivity() {
 
         showLogoSwitch.isChecked =
             getShowLogo()
+
+        hideIpv6Switch.isChecked =
+            getHideIpv6()
 
         displaySwitch.isChecked =
             isModuleEnabled(
@@ -2962,6 +3063,10 @@ class MainActivity : AppCompatActivity() {
                     KEY_SHOW_LOGO,
                     showLogoToSave
                 )
+                .putBoolean(
+                    KEY_HIDE_IPV6,
+                    hideIpv6Switch.isChecked
+                )
                 .putString(
                     KEY_ACCENT,
                     accent
@@ -3038,6 +3143,10 @@ class MainActivity : AppCompatActivity() {
                 .putBoolean(
                     KEY_SHOW_LOGO,
                     true
+                )
+                .putBoolean(
+                    KEY_HIDE_IPV6,
+                    false
                 )
                 .putString(
                     KEY_ACCENT,
@@ -3221,6 +3330,9 @@ class MainActivity : AppCompatActivity() {
 
         private const val KEY_SHOW_LOGO =
             "show_logo"
+
+        private const val KEY_HIDE_IPV6 =
+            "hide_ipv6"
 
         private const val KEY_ACCENT =
             "accent"
