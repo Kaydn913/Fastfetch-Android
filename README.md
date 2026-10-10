@@ -6,7 +6,7 @@
 
 <p align="center">
   <img alt="Android 7.1+" src="https://img.shields.io/badge/Android-7.1%2B-3DDC84?logo=android&logoColor=white">
-  <img alt="Version 1.0" src="https://img.shields.io/badge/version-1.0-blue">
+  <img alt="Version 1.1" src="https://img.shields.io/badge/version-1.1-blue">
   <img alt="Supported ABIs" src="https://img.shields.io/badge/ABIs-arm64%20%7C%20arm32%20%7C%20x86%20%7C%20x86__64-informational">
   <img alt="Kotlin and C++" src="https://img.shields.io/badge/Kotlin%20%2B%20C%2B%2B-native-7F52FF?logo=kotlin&logoColor=white">
 </p>
