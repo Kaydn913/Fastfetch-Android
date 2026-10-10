@@ -14,6 +14,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
@@ -25,10 +26,13 @@ import android.os.PowerManager
 import android.os.StatFs
 import android.os.SystemClock
 import android.text.Editable
+import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.TextPaint
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -41,11 +45,17 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.text.PrecomputedTextCompat
+import androidx.core.widget.TextViewCompat
 import com.kaydn.fastfetchandroid.databinding.ActivityMainBinding
 import java.net.Inet4Address
 import java.net.Inet6Address
+import java.net.InetAddress
 import java.nio.file.Files
 import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
@@ -56,6 +66,8 @@ class MainActivity : AppCompatActivity() {
     private val normalColor = Color.rgb(232, 232, 232)
 
     private var lastPlainOutput = ""
+
+    // Only touched on the refresh thread (from buildFastfetchOutput).
     private var cachedThermalHeadroom: Float? = null
     private var lastThermalHeadroomRead = 0L
 
@@ -75,16 +87,31 @@ class MainActivity : AppCompatActivity() {
 
     private val refreshHandler = Handler(Looper.getMainLooper())
 
-    private val refreshRunnable = object : Runnable {
-        override fun run() {
-            refreshFastfetch()
+    // Refresh state. All of these are only read and written on the
+    // main thread; the refresh thread hands its result back via
+    // refreshHandler.post.
+    private var isStarted = false
+    private var refreshGeneration = 0
+    private var refreshInFlight = false
+    private var refreshPending = false
+    private var forceNextApply = true
 
-            val interval = getRefreshIntervalMs()
-            if (interval > 0L) {
-                refreshHandler.postDelayed(this, interval)
-            }
-        }
+    private val refreshRunnable = Runnable {
+        requestRefresh()
     }
+
+    private data class FastfetchResult(
+        val renderedText: CharSequence,
+        val plainText: String,
+        val showLogo: Boolean,
+        // renderedText with its glyphs already measured on the refresh
+        // thread, so the UI thread can skip that work. Null if
+        // precomputing failed; renderedText is the fallback.
+        val precomputedText: PrecomputedTextCompat? = null,
+        // Exact width the text needs, in px, measured on the refresh
+        // thread. -1 if unknown (the view stays wrap_content).
+        val textWidthPx: Int = -1
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,7 +142,15 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        refreshFastfetch()
+        // Nothing to copy or share until the first refresh lands.
+        setOutputActionsEnabled(false)
+
+        // Fonts and logo visibility go on up front so the first frame
+        // already looks right. The text itself arrives once the first
+        // background refresh (started in onStart) finishes.
+        applyOutputFont()
+        binding.logoText.visibility =
+            if (shouldShowLogo(isWatchStyle())) View.VISIBLE else View.GONE
 
         binding.root.post {
             val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -128,37 +163,242 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        restartRefreshLoop()
+        isStarted = true
+
+        // Refresh right away (also covers coming back from the
+        // background, so the screen never shows stale values).
+        requestRefresh()
     }
 
     override fun onStop() {
+        isStarted = false
+
+        // Anything still running on the refresh thread belongs to the
+        // old session; bumping the generation makes its result get
+        // dropped when it arrives.
+        refreshGeneration++
+        refreshInFlight = false
+        refreshPending = false
         refreshHandler.removeCallbacks(refreshRunnable)
+
         super.onStop()
     }
 
     // ==================================================
     // REFRESH / UI
     // ==================================================
+    //
+    // v1.0 built the whole output on the main thread every tick, which
+    // froze the UI for ~100 ms per tick on slow devices (onn stick:
+    // 29/29 frames janky, 105 ms median). Now:
+    //
+    //  1. requestRefresh() hands buildFastfetchOutput() to a background
+    //     thread.
+    //  2. onRefreshFinished() puts the result on screen (main thread).
+    //  3. Only then is the next tick scheduled, so slow ticks can never
+    //     pile up behind each other.
 
-    private fun restartRefreshLoop() {
+    private fun requestRefresh() {
+        if (!isStarted) {
+            return
+        }
+
+        refreshHandler.removeCallbacks(refreshRunnable)
+
+        if (refreshInFlight) {
+            // Run exactly one more after the current one, so a settings
+            // change made mid-refresh still shows up.
+            refreshPending = true
+            return
+        }
+
+        refreshInFlight = true
+        val generation = refreshGeneration
+
+        // Read on the UI thread (it looks at the TextView's paint), then
+        // handed to the refresh thread, which measures the text against
+        // it. Immutable, so sharing it across threads is safe.
+        val textParams =
+            TextViewCompat.getTextMetricsParams(binding.sampleText)
+
+        // A private copy of the TextView's paint (font, size), so the
+        // refresh thread can measure the text width without touching
+        // the real view.
+        val measurePaint = TextPaint(binding.sampleText.paint)
+
+        refreshExecutor.execute {
+            val result =
+                try {
+                    val output = buildFastfetchOutput()
+
+                    output.copy(
+                        precomputedText =
+                            precompute(
+                                output.renderedText,
+                                textParams
+                            ),
+                        textWidthPx =
+                            measureTextWidth(
+                                output.renderedText,
+                                measurePaint
+                            )
+                    )
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Refresh failed", t)
+                    null
+                }
+
+            refreshHandler.post {
+                onRefreshFinished(generation, result)
+            }
+        }
+    }
+
+    private fun onRefreshFinished(
+        generation: Int,
+        result: FastfetchResult?
+    ) {
+        if (generation != refreshGeneration) {
+            // Started before the last onStop(); that screen is gone.
+            return
+        }
+
+        refreshInFlight = false
+
+        if (isFinishing || isDestroyed) {
+            return
+        }
+
+        if (result != null) {
+            applyRefreshResult(result)
+        }
+
+        if (refreshPending) {
+            refreshPending = false
+            requestRefresh()
+            return
+        }
+
+        scheduleNextRefresh()
+    }
+
+    private fun scheduleNextRefresh() {
         refreshHandler.removeCallbacks(refreshRunnable)
 
         val interval = getRefreshIntervalMs()
-        if (interval > 0L) {
+        if (isStarted && interval > 0L) {
             refreshHandler.postDelayed(refreshRunnable, interval)
         }
     }
 
-    private fun refreshFastfetch() {
-        val watchStyle = isWatchStyle()
+    private fun applyRefreshResult(result: FastfetchResult) {
+        val logoVisibility =
+            if (result.showLogo) View.VISIBLE else View.GONE
 
+        if (binding.logoText.visibility != logoVisibility) {
+            binding.logoText.visibility = logoVisibility
+        }
+
+        // setText always forces a full re-layout of the text, which is
+        // the expensive part on slow devices, so skip it when nothing
+        // changed since the last tick.
+        if (forceNextApply || result.plainText != lastPlainOutput) {
+            setOutputText(result)
+            lastPlainOutput = result.plainText
+        }
+
+        forceNextApply = false
+        setOutputActionsEnabled(true)
+    }
+
+    private fun setOutputText(result: FastfetchResult) {
+        // Width first: with a fixed width, setText can reuse the current
+        // size and only redraw, instead of re-measuring all the text
+        // and re-laying out the whole screen (that was ~21 ms per update
+        // on the onn stick). Only an actual width change relayouts.
+        fitOutputWidth(result.textWidthPx)
+
+        val precomputed = result.precomputedText
+
+        if (precomputed != null) {
+            try {
+                TextViewCompat.setPrecomputedText(
+                    binding.sampleText,
+                    precomputed
+                )
+                return
+            } catch (e: IllegalArgumentException) {
+                // The TextView's font or size changed after this text
+                // was measured, so the measurements don't fit anymore.
+                // Fall through to the normal (slower) path once.
+                Log.d(TAG, "Precomputed text no longer matches", e)
+            }
+        }
+
+        binding.sampleText.text = result.renderedText
+    }
+
+    private fun fitOutputWidth(textWidthPx: Int) {
+        val view = binding.sampleText
+
+        val targetWidth =
+            if (textWidthPx > 0) {
+                textWidthPx + view.totalPaddingLeft + view.totalPaddingRight
+            } else {
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+
+        val params = view.layoutParams
+
+        if (params.width != targetWidth) {
+            params.width = targetWidth
+            view.layoutParams = params
+        }
+    }
+
+    /**
+     * Runs on the refresh thread. Same calculation TextView does for a
+     * wrap_content width, rounded up the same way, so the text never
+     * wraps.
+     */
+    private fun measureTextWidth(
+        text: CharSequence,
+        paint: TextPaint
+    ): Int {
+        return try {
+            ceil(Layout.getDesiredWidth(text, paint)).toInt()
+        } catch (t: Throwable) {
+            Log.w(TAG, "Couldn't measure output width", t)
+            -1
+        }
+    }
+
+    /** Runs on the refresh thread. */
+    private fun precompute(
+        text: CharSequence,
+        params: PrecomputedTextCompat.Params
+    ): PrecomputedTextCompat? {
+        return try {
+            PrecomputedTextCompat.create(text, params)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Couldn't precompute output text", t)
+            null
+        }
+    }
+
+    /** Called after settings are saved or reset. */
+    private fun onSettingsChanged() {
+        // Apply the font first, so the refresh below measures its text
+        // against the new font instead of the old one.
         applyOutputFont()
 
-        binding.logoText.text = buildAndroidLogo()
-        binding.logoText.visibility =
-            if (shouldShowLogo(watchStyle)) View.VISIBLE else View.GONE
+        forceNextApply = true
+        requestRefresh()
+    }
 
-        binding.sampleText.text = buildFastfetchOutput()
+    private fun setOutputActionsEnabled(enabled: Boolean) {
+        binding.copyButton.isEnabled = enabled
+        binding.shareButton.isEnabled = enabled
     }
 
     private fun shouldShowLogo(watchStyle: Boolean): Boolean {
@@ -253,7 +493,8 @@ class MainActivity : AppCompatActivity() {
     // OUTPUT BUILDER
     // ==================================================
 
-    private fun buildFastfetchOutput(): CharSequence {
+    // Runs on the refresh thread. Must not touch views.
+    private fun buildFastfetchOutput(): FastfetchResult {
         val deviceType = getDeviceType()
         val requestedMode = getOutputMode()
         val mode = if (deviceType == "Watch") MODE_WATCH else requestedMode
@@ -322,11 +563,7 @@ class MainActivity : AppCompatActivity() {
         val locale = resources.configuration.locales[0].toLanguageTag()
 
         val nativeLines =
-            try {
-                stringFromJNI().trim().lines()
-            } catch (_: Throwable) {
-                emptyList()
-            }
+            getStaticNativeLines() + getDynamicNativeLines()
 
         fun nativeLine(name: String): String? {
             return nativeLines.firstOrNull {
@@ -517,14 +754,51 @@ class MainActivity : AppCompatActivity() {
         val includeLogo =
             shouldShowLogo(watchStyle)
 
-        lastPlainOutput =
+        val plainText =
             if (includeLogo) {
                 buildPlainFastfetch(infoLines)
             } else {
                 infoLines.joinToString("\n")
             }
 
-        return renderInfo(infoLines)
+        return FastfetchResult(
+            renderedText = renderInfo(infoLines),
+            plainText = plainText,
+            showLogo = includeLogo
+        )
+    }
+
+    /**
+     * GPU, Vulkan, OpenGL, SELinux, bootloader, root, kernel: none of
+     * it changes while the app is open, and reading the GPU means
+     * creating an EGL context plus a Vulkan instance. So it's read once
+     * per process and cached.
+     */
+    private fun getStaticNativeLines(): List<String> {
+        cachedStaticNativeLines?.let {
+            return it
+        }
+
+        return try {
+            staticInfoFromJNI()
+                .trim()
+                .lines()
+                .also { cachedStaticNativeLines = it }
+        } catch (_: Throwable) {
+            // Not cached, so the next tick tries again.
+            emptyList()
+        }
+    }
+
+    /** Uptime, CPU cores online, swap: cheap, so read every tick. */
+    private fun getDynamicNativeLines(): List<String> {
+        return try {
+            dynamicInfoFromJNI()
+                .trim()
+                .lines()
+        } catch (_: Throwable) {
+            emptyList()
+        }
     }
 
     // ==================================================
@@ -593,7 +867,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (mode == MODE_DETAILED) {
-            lines.add("Process: ${getProcessBitness()}")
+            // (Process bitness is shown under Android, not here, so it
+            // doesn't appear twice in detailed mode.)
             lines.add("Sensors: ${getSensorCount()}")
         }
 
@@ -936,12 +1211,17 @@ class MainActivity : AppCompatActivity() {
 
                     add("Build: ${Build.DISPLAY}")
 
+                    // Process bitness matters on devices like the onn
+                    // stick: a 64-bit-capable CPU (armv8l) running a
+                    // 32-bit userspace otherwise looks contradictory.
+                    val process = "Process: ${getProcessBitness()}"
+
                     if (nativeArchitecture != null) {
                         add(
-                            "Architecture: $nativeArchitecture | ABI: $allAbis"
+                            "Architecture: $nativeArchitecture | ABI: $allAbis | $process"
                         )
                     } else {
-                        add("ABI: $allAbis")
+                        add("ABI: $allAbis | $process")
                     }
 
                     add(getRuntimeLine())
@@ -1447,11 +1727,7 @@ class MainActivity : AppCompatActivity() {
             features.add("BLE")
         }
 
-        if (
-            pm.hasSystemFeature(
-                PackageManager.FEATURE_CAMERA_ANY
-            )
-        ) {
+        if (hasCamera()) {
             features.add("Camera")
         }
 
@@ -1475,6 +1751,28 @@ class MainActivity : AppCompatActivity() {
             "None reported"
         } else {
             features.joinToString(", ")
+        }
+    }
+
+    /**
+     * FEATURE_CAMERA_ANY is also declared by devices that only support
+     * plugging in a USB webcam (the onn Google TV stick reports it with
+     * zero cameras), so count the cameras that actually exist. This
+     * also picks up a USB webcam as soon as one is plugged in.
+     */
+    private fun hasCamera(): Boolean {
+        return try {
+            getSystemService(CameraManager::class.java)
+                .cameraIdList
+                .isNotEmpty()
+        } catch (_: Exception) {
+            // Camera service unavailable: fall back to built-in cameras
+            // only, never "external camera supported".
+            packageManager.hasSystemFeature(
+                PackageManager.FEATURE_CAMERA
+            ) || packageManager.hasSystemFeature(
+                PackageManager.FEATURE_CAMERA_FRONT
+            )
         }
     }
 
@@ -1636,16 +1934,42 @@ class MainActivity : AppCompatActivity() {
                             !linkAddress.address.isLinkLocalAddress
                 }
 
+        // A global IPv6 address is unique to the home network, so it can
+        // be hidden for screenshots and copied output.
+        val hideIpv6 = getHideIpv6()
+
         if (ipv6 != null) {
-            lines.add(
-                "IPv6: ${ipv6.address.hostAddress}/${ipv6.prefixLength}"
-            )
+            if (hideIpv6) {
+                lines.add("IPv6: Hidden")
+            } else {
+                lines.add(
+                    "IPv6: ${ipv6.address.hostAddress}/${ipv6.prefixLength}"
+                )
+            }
         }
 
         val dns =
             properties.dnsServers
                 .take(2)
-                .mapNotNull { it.hostAddress }
+                .mapNotNull { server ->
+                    if (
+                        hideIpv6 &&
+                        ipv6 != null &&
+                        server is Inet6Address &&
+                        isInSamePrefix(
+                            server,
+                            ipv6.address,
+                            ipv6.prefixLength
+                        )
+                    ) {
+                        // The router advertising itself as DNS: its
+                        // address shares the home network's prefix and
+                        // would leak what the IPv6 line hides.
+                        "Hidden"
+                    } else {
+                        server.hostAddress
+                    }
+                }
 
         if (dns.isNotEmpty()) {
             lines.add(
@@ -1654,6 +1978,40 @@ class MainActivity : AppCompatActivity() {
         }
 
         return lines
+    }
+
+    /** True if both addresses share their first [prefixLength] bits. */
+    private fun isInSamePrefix(
+        a: InetAddress,
+        b: InetAddress,
+        prefixLength: Int
+    ): Boolean {
+        val x = a.address
+        val y = b.address
+
+        if (x.size != y.size) {
+            return false
+        }
+
+        val bits = prefixLength.coerceIn(0, x.size * 8)
+        val fullBytes = bits / 8
+
+        for (i in 0 until fullBytes) {
+            if (x[i] != y[i]) {
+                return false
+            }
+        }
+
+        val remainingBits = bits % 8
+
+        if (remainingBits == 0) {
+            return true
+        }
+
+        val mask = (0xFF shl (8 - remainingBits)) and 0xFF
+
+        return (x[fullBytes].toInt() and mask) ==
+                (y[fullBytes].toInt() and mask)
     }
 
     // ==================================================
@@ -1738,8 +2096,10 @@ class MainActivity : AppCompatActivity() {
     // ==================================================
 
     private fun copyFastfetch() {
+        // The buttons stay disabled until the first refresh lands, so
+        // this is just a safety net.
         if (lastPlainOutput.isBlank()) {
-            refreshFastfetch()
+            return
         }
 
         val clipboard =
@@ -1763,7 +2123,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun shareFastfetch() {
         if (lastPlainOutput.isBlank()) {
-            refreshFastfetch()
+            return
         }
 
         val intent =
@@ -2097,6 +2457,14 @@ class MainActivity : AppCompatActivity() {
             )
     }
 
+    private fun getHideIpv6(): Boolean {
+        return prefs()
+            .getBoolean(
+                KEY_HIDE_IPV6,
+                false
+            )
+    }
+
     private fun getAccentName(): String {
         return prefs()
             .getString(
@@ -2271,6 +2639,10 @@ class MainActivity : AppCompatActivity() {
         val showLogoSwitch =
             dialog.findViewById<Switch>(
                 R.id.show_logo_switch
+            )
+        val hideIpv6Switch =
+            dialog.findViewById<Switch>(
+                R.id.hide_ipv6_switch
             )
 
         val accentSpinner =
@@ -2459,6 +2831,9 @@ class MainActivity : AppCompatActivity() {
 
         showLogoSwitch.isChecked =
             getShowLogo()
+
+        hideIpv6Switch.isChecked =
+            getHideIpv6()
 
         displaySwitch.isChecked =
             isModuleEnabled(
@@ -2688,6 +3063,10 @@ class MainActivity : AppCompatActivity() {
                     KEY_SHOW_LOGO,
                     showLogoToSave
                 )
+                .putBoolean(
+                    KEY_HIDE_IPV6,
+                    hideIpv6Switch.isChecked
+                )
                 .putString(
                     KEY_ACCENT,
                     accent
@@ -2746,8 +3125,7 @@ class MainActivity : AppCompatActivity() {
                 )
                 .apply()
 
-            refreshFastfetch()
-            restartRefreshLoop()
+            onSettingsChanged()
             dialog.dismiss()
         }
 
@@ -2765,6 +3143,10 @@ class MainActivity : AppCompatActivity() {
                 .putBoolean(
                     KEY_SHOW_LOGO,
                     true
+                )
+                .putBoolean(
+                    KEY_HIDE_IPV6,
+                    false
                 )
                 .putString(
                     KEY_ACCENT,
@@ -2824,8 +3206,7 @@ class MainActivity : AppCompatActivity() {
                 )
                 .apply()
 
-            refreshFastfetch()
-            restartRefreshLoop()
+            onSettingsChanged()
             dialog.dismiss()
         }
 
@@ -2907,9 +3288,37 @@ class MainActivity : AppCompatActivity() {
     // JNI
     // ==================================================
 
-    external fun stringFromJNI(): String
+    external fun staticInfoFromJNI(): String
+
+    external fun dynamicInfoFromJNI(): String
 
     companion object {
+        private const val TAG = "FastfetchAndroid"
+
+        // One background thread shared by every MainActivity instance,
+        // at background priority so it never competes with the UI and
+        // RenderThread for CPU time.
+        private val refreshExecutor: ExecutorService =
+            Executors.newSingleThreadExecutor { runnable ->
+                Thread(
+                    {
+                        android.os.Process.setThreadPriority(
+                            android.os.Process.THREAD_PRIORITY_BACKGROUND
+                        )
+                        runnable.run()
+                    },
+                    "fastfetch-refresh"
+                ).apply {
+                    isDaemon = true
+                }
+            }
+
+        // Process-wide cache for staticInfoFromJNI(). Lives in the
+        // companion so it survives activity recreation (rotation, dark
+        // mode toggle, folding), and the GPU is only probed once.
+        @Volatile
+        private var cachedStaticNativeLines: List<String>? = null
+
         private const val PREFS_NAME =
             "fastfetch_settings"
 
@@ -2921,6 +3330,9 @@ class MainActivity : AppCompatActivity() {
 
         private const val KEY_SHOW_LOGO =
             "show_logo"
+
+        private const val KEY_HIDE_IPV6 =
+            "hide_ipv6"
 
         private const val KEY_ACCENT =
             "accent"

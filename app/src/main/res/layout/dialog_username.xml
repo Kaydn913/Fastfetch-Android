@@ -75,6 +75,16 @@
             android:text="Show Android ASCII logo"
             android:textColor="#FFFFFF" />
 
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/hide_ipv6_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:checked="false"
+            android:text="Hide IPv6 address (for screenshots)"
+            android:textColor="#FFFFFF" />
+
         <TextView
             android:fontFamily="@font/quicksand_regular"
             android:layout_width="match_parent"

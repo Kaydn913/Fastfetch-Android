@@ -329,34 +329,28 @@ static std::string getVulkanInfo() {
     return result.str();
 }
 
+// Reads the same file getenforce reads, without forking a process.
+// A forked getenforce runs in the app's SELinux domain anyway, so
+// whatever it was allowed to read, this is allowed to read too.
 static std::string getSelinuxStatus() {
-    FILE* pipe = popen("/system/bin/getenforce", "r");
+    std::ifstream file("/sys/fs/selinux/enforce");
 
-    if (!pipe) {
+    if (!file.is_open()) {
         return "Unknown";
     }
 
-    char buffer[128] = {0};
+    int value = -1;
+    file >> value;
 
-    if (fgets(buffer, sizeof(buffer), pipe) == nullptr) {
-        pclose(pipe);
-        return "Unknown";
+    if (value == 1) {
+        return "Enforcing";
     }
 
-    pclose(pipe);
-
-    std::string result(buffer);
-
-    while (!result.empty() &&
-           (result.back() == '\n' || result.back() == '\r')) {
-        result.pop_back();
+    if (value == 0) {
+        return "Permissive";
     }
 
-    if (result.empty()) {
-        return "Unknown";
-    }
-
-    return result;
+    return "Unknown";
 }
 
 static std::string getSystemProperty(const char* name) {
@@ -424,9 +418,25 @@ static std::string getRootStatus() {
     return "Not detected [Heuristic]";
 }
 
+// ==================================================
+// JNI
+// ==================================================
+//
+// The info is split in two so the expensive parts only run once:
+//
+//  - staticInfoFromJNI(): things that can't change while the app is
+//    open. Creates an EGL context and a Vulkan instance to read the
+//    GPU, so the Kotlin side calls it once and caches the result.
+//
+//  - dynamicInfoFromJNI(): cheap reads that do change (uptime, CPU
+//    cores online, swap). Called on every refresh tick.
+//
+// Both return "Name: value" lines that MainActivity parses by prefix,
+// so the order of lines doesn't matter.
+
 extern "C"
 JNIEXPORT jstring JNICALL
-Java_com_kaydn_fastfetchandroid_MainActivity_stringFromJNI(
+Java_com_kaydn_fastfetchandroid_MainActivity_staticInfoFromJNI(
         JNIEnv* env,
         jobject /* this */) {
 
@@ -450,6 +460,52 @@ Java_com_kaydn_fastfetchandroid_MainActivity_stringFromJNI(
         output << "Kernel: Unable to detect\n";
     }
 
+    std::string gpuInfo = getGpuInfo();
+
+    if (!gpuInfo.empty()) {
+        output << gpuInfo;
+    }
+
+    std::string vulkanInfo = getVulkanInfo();
+
+    if (!vulkanInfo.empty()) {
+        output << vulkanInfo;
+    }
+    output
+            << "SELinux: "
+            << getSelinuxStatus()
+            << "\n";
+
+    output
+            << "Bootloader: "
+            << getBootloaderStatus()
+            << "\n";
+
+    output
+            << "Verified Boot: "
+            << getVerifiedBootStatus()
+            << "\n";
+
+    output
+            << "Root: "
+            << getRootStatus()
+            << "\n";
+
+    std::string result = output.str();
+
+    return env->NewStringUTF(
+            result.c_str()
+    );
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_kaydn_fastfetchandroid_MainActivity_dynamicInfoFromJNI(
+        JNIEnv* env,
+        jobject /* this */) {
+
+    std::ostringstream output;
+
     // Uptime
     struct sysinfo info{};
 
@@ -460,7 +516,7 @@ Java_com_kaydn_fastfetchandroid_MainActivity_stringFromJNI(
                 << "\n";
     }
 
-    // CPU
+    // CPU (online core count can change, so this stays per-tick)
     long configuredCores =
             sysconf(_SC_NPROCESSORS_CONF);
 
@@ -497,36 +553,6 @@ Java_com_kaydn_fastfetchandroid_MainActivity_stringFromJNI(
 
         output << "\n";
     }
-    std::string gpuInfo = getGpuInfo();
-
-
-    if (!gpuInfo.empty()) {
-        output << gpuInfo;
-    }
-    std::string vulkanInfo = getVulkanInfo();
-
-    if (!vulkanInfo.empty()) {
-        output << vulkanInfo;
-    }
-    output
-            << "SELinux: "
-            << getSelinuxStatus()
-            << "\n";
-
-    output
-            << "Bootloader: "
-            << getBootloaderStatus()
-            << "\n";
-
-    output
-            << "Verified Boot: "
-            << getVerifiedBootStatus()
-            << "\n";
-
-    output
-            << "Root: "
-            << getRootStatus()
-            << "\n";
 
     // Swap / zRAM
     long long swapTotalKB =

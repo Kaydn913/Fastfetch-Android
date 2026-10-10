@@ -13,8 +13,8 @@ android {
         applicationId = "com.kaydn.fastfetchandroid"
         minSdk = 25
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -46,6 +46,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    // Pinned so Gradle never quietly downloads a second NDK.
+    ndkVersion = "30.0.16248370"
 
     externalNativeBuild {
         cmake {
