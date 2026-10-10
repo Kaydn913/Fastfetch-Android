@@ -62,7 +62,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 ## Tested Devices
 
 <details open>
-<summary><strong>Phones</strong> (17)</summary>
+<summary><strong>Phones</strong> (18)</summary>
 
 ### BLU
 
@@ -71,6 +71,10 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 ### Google
 
 - Pixel 7 Pro
+
+### Microsoft
+
+- Surface Duo 2
 
 ### Motorola
 
