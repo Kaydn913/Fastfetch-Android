@@ -25,8 +25,10 @@ import android.os.PowerManager
 import android.os.StatFs
 import android.os.SystemClock
 import android.text.Editable
+import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.TextPaint
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.util.Log
@@ -42,6 +44,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.text.PrecomputedTextCompat
+import androidx.core.widget.TextViewCompat
 import com.kaydn.fastfetchandroid.databinding.ActivityMainBinding
 import java.net.Inet4Address
 import java.net.Inet6Address
@@ -49,6 +53,7 @@ import java.nio.file.Files
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
@@ -88,16 +93,22 @@ class MainActivity : AppCompatActivity() {
     private var refreshInFlight = false
     private var refreshPending = false
     private var forceNextApply = true
-    private var appliedOutputFont: String? = null
 
     private val refreshRunnable = Runnable {
         requestRefresh()
     }
 
-    private class FastfetchResult(
+    private data class FastfetchResult(
         val renderedText: CharSequence,
         val plainText: String,
-        val showLogo: Boolean
+        val showLogo: Boolean,
+        // renderedText with its glyphs already measured on the refresh
+        // thread, so the UI thread can skip that work. Null if
+        // precomputing failed; renderedText is the fallback.
+        val precomputedText: PrecomputedTextCompat? = null,
+        // Exact width the text needs, in px, measured on the refresh
+        // thread. -1 if unknown (the view stays wrap_content).
+        val textWidthPx: Int = -1
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,7 +147,6 @@ class MainActivity : AppCompatActivity() {
         // already looks right. The text itself arrives once the first
         // background refresh (started in onStart) finishes.
         applyOutputFont()
-        appliedOutputFont = getOutputFontName()
         binding.logoText.visibility =
             if (shouldShowLogo(isWatchStyle())) View.VISIBLE else View.GONE
 
@@ -203,10 +213,34 @@ class MainActivity : AppCompatActivity() {
         refreshInFlight = true
         val generation = refreshGeneration
 
+        // Read on the UI thread (it looks at the TextView's paint), then
+        // handed to the refresh thread, which measures the text against
+        // it. Immutable, so sharing it across threads is safe.
+        val textParams =
+            TextViewCompat.getTextMetricsParams(binding.sampleText)
+
+        // A private copy of the TextView's paint (font, size), so the
+        // refresh thread can measure the text width without touching
+        // the real view.
+        val measurePaint = TextPaint(binding.sampleText.paint)
+
         refreshExecutor.execute {
             val result =
                 try {
-                    buildFastfetchOutput()
+                    val output = buildFastfetchOutput()
+
+                    output.copy(
+                        precomputedText =
+                            precompute(
+                                output.renderedText,
+                                textParams
+                            ),
+                        textWidthPx =
+                            measureTextWidth(
+                                output.renderedText,
+                                measurePaint
+                            )
+                    )
                 } catch (t: Throwable) {
                     Log.e(TAG, "Refresh failed", t)
                     null
@@ -256,12 +290,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyRefreshResult(result: FastfetchResult) {
-        val outputFont = getOutputFontName()
-        if (forceNextApply || outputFont != appliedOutputFont) {
-            applyOutputFont()
-            appliedOutputFont = outputFont
-        }
-
         val logoVisibility =
             if (result.showLogo) View.VISIBLE else View.GONE
 
@@ -273,7 +301,7 @@ class MainActivity : AppCompatActivity() {
         // the expensive part on slow devices, so skip it when nothing
         // changed since the last tick.
         if (forceNextApply || result.plainText != lastPlainOutput) {
-            binding.sampleText.text = result.renderedText
+            setOutputText(result)
             lastPlainOutput = result.plainText
         }
 
@@ -281,8 +309,87 @@ class MainActivity : AppCompatActivity() {
         setOutputActionsEnabled(true)
     }
 
+    private fun setOutputText(result: FastfetchResult) {
+        // Width first: with a fixed width, setText can reuse the current
+        // size and only redraw, instead of re-measuring all the text
+        // and re-laying out the whole screen (that was ~21 ms per update
+        // on the onn stick). Only an actual width change relayouts.
+        fitOutputWidth(result.textWidthPx)
+
+        val precomputed = result.precomputedText
+
+        if (precomputed != null) {
+            try {
+                TextViewCompat.setPrecomputedText(
+                    binding.sampleText,
+                    precomputed
+                )
+                return
+            } catch (e: IllegalArgumentException) {
+                // The TextView's font or size changed after this text
+                // was measured, so the measurements don't fit anymore.
+                // Fall through to the normal (slower) path once.
+                Log.d(TAG, "Precomputed text no longer matches", e)
+            }
+        }
+
+        binding.sampleText.text = result.renderedText
+    }
+
+    private fun fitOutputWidth(textWidthPx: Int) {
+        val view = binding.sampleText
+
+        val targetWidth =
+            if (textWidthPx > 0) {
+                textWidthPx + view.totalPaddingLeft + view.totalPaddingRight
+            } else {
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+
+        val params = view.layoutParams
+
+        if (params.width != targetWidth) {
+            params.width = targetWidth
+            view.layoutParams = params
+        }
+    }
+
+    /**
+     * Runs on the refresh thread. Same calculation TextView does for a
+     * wrap_content width, rounded up the same way, so the text never
+     * wraps.
+     */
+    private fun measureTextWidth(
+        text: CharSequence,
+        paint: TextPaint
+    ): Int {
+        return try {
+            ceil(Layout.getDesiredWidth(text, paint)).toInt()
+        } catch (t: Throwable) {
+            Log.w(TAG, "Couldn't measure output width", t)
+            -1
+        }
+    }
+
+    /** Runs on the refresh thread. */
+    private fun precompute(
+        text: CharSequence,
+        params: PrecomputedTextCompat.Params
+    ): PrecomputedTextCompat? {
+        return try {
+            PrecomputedTextCompat.create(text, params)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Couldn't precompute output text", t)
+            null
+        }
+    }
+
     /** Called after settings are saved or reset. */
     private fun onSettingsChanged() {
+        // Apply the font first, so the refresh below measures its text
+        // against the new font instead of the old one.
+        applyOutputFont()
+
         forceNextApply = true
         requestRefresh()
     }
