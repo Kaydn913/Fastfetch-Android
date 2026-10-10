@@ -15,6 +15,9 @@ Fastfetch Android brings detailed, Fastfetch-style device information to Android
 
 It currently supports **Android 7.1 (API 25) and above** on `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
 
+> [!NOTE]
+> **This project is vibe coded.** Most of the code was written with AI assistance (originally ChatGPT, now Claude), while I direct the work, test it on real devices, and check the results. Expect some rough edges, and please open an issue if something looks wrong.
+
 ## Features
 
 Fastfetch Android can report information including:
