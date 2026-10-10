@@ -47,6 +47,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    // Pinned so Gradle never quietly downloads a second NDK.
+    ndkVersion = "30.0.16248370"
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
