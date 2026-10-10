@@ -221,6 +221,9 @@ More screenshots are available in the **[full screenshot gallery](SCREENSHOTS.md
 - Virtual Master-specific emulator detection is not implemented yet.
 - Native Android-on-PC installations and ChromeOS ARCVM can currently be classified as tablets.
 - Some security or system information may be restricted by Android or the device manufacturer and may appear as unavailable or unknown.
+- On Android 16+ tablets and other large screens, Android ignores the app's landscape lock, so it runs in portrait. Long lines then run past the right edge and need sideways scrolling.
+- Root detection only looks for common `su` binaries, so root methods that hide them (like Magisk or KernelSU) can show as "Not detected".
+- On very slow devices (like the onn Full HD Google TV stick), each info update can still take about one frame to draw. It isn't noticeable on a static screen, but it isn't perfectly smooth yet.
 - More Android form factors and emulator environments can be added as they are tested.
 
 ## Bug Reports
