@@ -74,6 +74,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 ### Google
 
 - Pixel 7 Pro
+- Pixel 8
 - Pixel 9 Pro XL
 
 ### Microsoft
