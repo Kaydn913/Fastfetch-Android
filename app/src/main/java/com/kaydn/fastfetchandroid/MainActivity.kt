@@ -29,6 +29,7 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -46,6 +47,8 @@ import java.net.Inet4Address
 import java.net.Inet6Address
 import java.nio.file.Files
 import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
@@ -56,6 +59,8 @@ class MainActivity : AppCompatActivity() {
     private val normalColor = Color.rgb(232, 232, 232)
 
     private var lastPlainOutput = ""
+
+    // Only touched on the refresh thread (from buildFastfetchOutput).
     private var cachedThermalHeadroom: Float? = null
     private var lastThermalHeadroomRead = 0L
 
@@ -75,16 +80,25 @@ class MainActivity : AppCompatActivity() {
 
     private val refreshHandler = Handler(Looper.getMainLooper())
 
-    private val refreshRunnable = object : Runnable {
-        override fun run() {
-            refreshFastfetch()
+    // Refresh state. All of these are only read and written on the
+    // main thread; the refresh thread hands its result back via
+    // refreshHandler.post.
+    private var isStarted = false
+    private var refreshGeneration = 0
+    private var refreshInFlight = false
+    private var refreshPending = false
+    private var forceNextApply = true
+    private var appliedOutputFont: String? = null
 
-            val interval = getRefreshIntervalMs()
-            if (interval > 0L) {
-                refreshHandler.postDelayed(this, interval)
-            }
-        }
+    private val refreshRunnable = Runnable {
+        requestRefresh()
     }
+
+    private class FastfetchResult(
+        val renderedText: CharSequence,
+        val plainText: String,
+        val showLogo: Boolean
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,7 +129,16 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        refreshFastfetch()
+        // Nothing to copy or share until the first refresh lands.
+        setOutputActionsEnabled(false)
+
+        // Fonts and logo visibility go on up front so the first frame
+        // already looks right. The text itself arrives once the first
+        // background refresh (started in onStart) finishes.
+        applyOutputFont()
+        appliedOutputFont = getOutputFontName()
+        binding.logoText.visibility =
+            if (shouldShowLogo(isWatchStyle())) View.VISIBLE else View.GONE
 
         binding.root.post {
             val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -128,37 +151,145 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        restartRefreshLoop()
+        isStarted = true
+
+        // Refresh right away (also covers coming back from the
+        // background, so the screen never shows stale values).
+        requestRefresh()
     }
 
     override fun onStop() {
+        isStarted = false
+
+        // Anything still running on the refresh thread belongs to the
+        // old session; bumping the generation makes its result get
+        // dropped when it arrives.
+        refreshGeneration++
+        refreshInFlight = false
+        refreshPending = false
         refreshHandler.removeCallbacks(refreshRunnable)
+
         super.onStop()
     }
 
     // ==================================================
     // REFRESH / UI
     // ==================================================
+    //
+    // v1.0 built the whole output on the main thread every tick, which
+    // froze the UI for ~100 ms per tick on slow devices (onn stick:
+    // 29/29 frames janky, 105 ms median). Now:
+    //
+    //  1. requestRefresh() hands buildFastfetchOutput() to a background
+    //     thread.
+    //  2. onRefreshFinished() puts the result on screen (main thread).
+    //  3. Only then is the next tick scheduled, so slow ticks can never
+    //     pile up behind each other.
 
-    private fun restartRefreshLoop() {
+    private fun requestRefresh() {
+        if (!isStarted) {
+            return
+        }
+
+        refreshHandler.removeCallbacks(refreshRunnable)
+
+        if (refreshInFlight) {
+            // Run exactly one more after the current one, so a settings
+            // change made mid-refresh still shows up.
+            refreshPending = true
+            return
+        }
+
+        refreshInFlight = true
+        val generation = refreshGeneration
+
+        refreshExecutor.execute {
+            val result =
+                try {
+                    buildFastfetchOutput()
+                } catch (t: Throwable) {
+                    Log.e(TAG, "Refresh failed", t)
+                    null
+                }
+
+            refreshHandler.post {
+                onRefreshFinished(generation, result)
+            }
+        }
+    }
+
+    private fun onRefreshFinished(
+        generation: Int,
+        result: FastfetchResult?
+    ) {
+        if (generation != refreshGeneration) {
+            // Started before the last onStop(); that screen is gone.
+            return
+        }
+
+        refreshInFlight = false
+
+        if (isFinishing || isDestroyed) {
+            return
+        }
+
+        if (result != null) {
+            applyRefreshResult(result)
+        }
+
+        if (refreshPending) {
+            refreshPending = false
+            requestRefresh()
+            return
+        }
+
+        scheduleNextRefresh()
+    }
+
+    private fun scheduleNextRefresh() {
         refreshHandler.removeCallbacks(refreshRunnable)
 
         val interval = getRefreshIntervalMs()
-        if (interval > 0L) {
+        if (isStarted && interval > 0L) {
             refreshHandler.postDelayed(refreshRunnable, interval)
         }
     }
 
-    private fun refreshFastfetch() {
-        val watchStyle = isWatchStyle()
+    private fun applyRefreshResult(result: FastfetchResult) {
+        val outputFont = getOutputFontName()
+        if (forceNextApply || outputFont != appliedOutputFont) {
+            applyOutputFont()
+            appliedOutputFont = outputFont
+        }
 
-        applyOutputFont()
+        val logoVisibility =
+            if (result.showLogo) View.VISIBLE else View.GONE
 
-        binding.logoText.text = buildAndroidLogo()
-        binding.logoText.visibility =
-            if (shouldShowLogo(watchStyle)) View.VISIBLE else View.GONE
+        if (binding.logoText.visibility != logoVisibility) {
+            binding.logoText.visibility = logoVisibility
+        }
 
-        binding.sampleText.text = buildFastfetchOutput()
+        // setText always forces a full re-layout of the text, which is
+        // the expensive part on slow devices, so skip it when nothing
+        // changed since the last tick.
+        if (forceNextApply || result.plainText != lastPlainOutput) {
+            binding.sampleText.text = result.renderedText
+            lastPlainOutput = result.plainText
+        }
+
+        forceNextApply = false
+        setOutputActionsEnabled(true)
+    }
+
+    /** Called after settings are saved or reset. */
+    private fun onSettingsChanged() {
+        forceNextApply = true
+        requestRefresh()
+    }
+
+    private fun setOutputActionsEnabled(enabled: Boolean) {
+        binding.copyButton.isEnabled = enabled
+        binding.shareButton.isEnabled = enabled
     }
 
     private fun shouldShowLogo(watchStyle: Boolean): Boolean {
@@ -253,7 +384,8 @@ class MainActivity : AppCompatActivity() {
     // OUTPUT BUILDER
     // ==================================================
 
-    private fun buildFastfetchOutput(): CharSequence {
+    // Runs on the refresh thread. Must not touch views.
+    private fun buildFastfetchOutput(): FastfetchResult {
         val deviceType = getDeviceType()
         val requestedMode = getOutputMode()
         val mode = if (deviceType == "Watch") MODE_WATCH else requestedMode
@@ -322,11 +454,7 @@ class MainActivity : AppCompatActivity() {
         val locale = resources.configuration.locales[0].toLanguageTag()
 
         val nativeLines =
-            try {
-                stringFromJNI().trim().lines()
-            } catch (_: Throwable) {
-                emptyList()
-            }
+            getStaticNativeLines() + getDynamicNativeLines()
 
         fun nativeLine(name: String): String? {
             return nativeLines.firstOrNull {
@@ -517,14 +645,51 @@ class MainActivity : AppCompatActivity() {
         val includeLogo =
             shouldShowLogo(watchStyle)
 
-        lastPlainOutput =
+        val plainText =
             if (includeLogo) {
                 buildPlainFastfetch(infoLines)
             } else {
                 infoLines.joinToString("\n")
             }
 
-        return renderInfo(infoLines)
+        return FastfetchResult(
+            renderedText = renderInfo(infoLines),
+            plainText = plainText,
+            showLogo = includeLogo
+        )
+    }
+
+    /**
+     * GPU, Vulkan, OpenGL, SELinux, bootloader, root, kernel: none of
+     * it changes while the app is open, and reading the GPU means
+     * creating an EGL context plus a Vulkan instance. So it's read once
+     * per process and cached.
+     */
+    private fun getStaticNativeLines(): List<String> {
+        cachedStaticNativeLines?.let {
+            return it
+        }
+
+        return try {
+            staticInfoFromJNI()
+                .trim()
+                .lines()
+                .also { cachedStaticNativeLines = it }
+        } catch (_: Throwable) {
+            // Not cached, so the next tick tries again.
+            emptyList()
+        }
+    }
+
+    /** Uptime, CPU cores online, swap: cheap, so read every tick. */
+    private fun getDynamicNativeLines(): List<String> {
+        return try {
+            dynamicInfoFromJNI()
+                .trim()
+                .lines()
+        } catch (_: Throwable) {
+            emptyList()
+        }
     }
 
     // ==================================================
@@ -1738,8 +1903,10 @@ class MainActivity : AppCompatActivity() {
     // ==================================================
 
     private fun copyFastfetch() {
+        // The buttons stay disabled until the first refresh lands, so
+        // this is just a safety net.
         if (lastPlainOutput.isBlank()) {
-            refreshFastfetch()
+            return
         }
 
         val clipboard =
@@ -1763,7 +1930,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun shareFastfetch() {
         if (lastPlainOutput.isBlank()) {
-            refreshFastfetch()
+            return
         }
 
         val intent =
@@ -2746,8 +2913,7 @@ class MainActivity : AppCompatActivity() {
                 )
                 .apply()
 
-            refreshFastfetch()
-            restartRefreshLoop()
+            onSettingsChanged()
             dialog.dismiss()
         }
 
@@ -2824,8 +2990,7 @@ class MainActivity : AppCompatActivity() {
                 )
                 .apply()
 
-            refreshFastfetch()
-            restartRefreshLoop()
+            onSettingsChanged()
             dialog.dismiss()
         }
 
@@ -2907,9 +3072,37 @@ class MainActivity : AppCompatActivity() {
     // JNI
     // ==================================================
 
-    external fun stringFromJNI(): String
+    external fun staticInfoFromJNI(): String
+
+    external fun dynamicInfoFromJNI(): String
 
     companion object {
+        private const val TAG = "FastfetchAndroid"
+
+        // One background thread shared by every MainActivity instance,
+        // at background priority so it never competes with the UI and
+        // RenderThread for CPU time.
+        private val refreshExecutor: ExecutorService =
+            Executors.newSingleThreadExecutor { runnable ->
+                Thread(
+                    {
+                        android.os.Process.setThreadPriority(
+                            android.os.Process.THREAD_PRIORITY_BACKGROUND
+                        )
+                        runnable.run()
+                    },
+                    "fastfetch-refresh"
+                ).apply {
+                    isDaemon = true
+                }
+            }
+
+        // Process-wide cache for staticInfoFromJNI(). Lives in the
+        // companion so it survives activity recreation (rotation, dark
+        // mode toggle, folding), and the GPU is only probed once.
+        @Volatile
+        private var cachedStaticNativeLines: List<String>? = null
+
         private const val PREFS_NAME =
             "fastfetch_settings"
 
