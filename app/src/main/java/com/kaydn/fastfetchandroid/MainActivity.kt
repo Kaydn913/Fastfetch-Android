@@ -519,71 +519,17 @@ class MainActivity : AppCompatActivity() {
         val title = "$username@${Build.MODEL}"
         val separator = "-".repeat(title.length)
 
-        val manufacturer =
-            Build.MANUFACTURER.replaceFirstChar {
-                if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
-            }
+        val manufacturer = cachedManufacturer
+        val firstAbi = cachedFirstAbi
+        val allAbis = cachedAllAbis
 
-        val firstAbi = Build.SUPPORTED_ABIS.firstOrNull() ?: "Unknown"
-        val allAbis =
-            Build.SUPPORTED_ABIS
-                .takeIf { it.isNotEmpty() }
-                ?.joinToString(", ")
-                ?: "Unknown"
-
-        @Suppress("DEPRECATION")
-        val displayMode = windowManager.defaultDisplay.mode
-
-        val displayText =
-            "${displayMode.physicalWidth}x${displayMode.physicalHeight} @ " +
-                    "${displayMode.refreshRate.roundToInt()} Hz"
-
-        val density = resources.displayMetrics.densityDpi
-        val orientation = getOrientationName()
-
-        val activityManager =
-            getSystemService(ACTIVITY_SERVICE) as ActivityManager
-
-        val memoryInfo = ActivityManager.MemoryInfo()
-        activityManager.getMemoryInfo(memoryInfo)
-
-        val totalRam = memoryInfo.totalMem
-        val usedRam = totalRam - memoryInfo.availMem
-
-        val ramPercent =
-            if (totalRam > 0) {
-                (usedRam.toDouble() / totalRam * 100.0).roundToInt()
-            } else {
-                0
-            }
-
-        val memoryText =
-            "${formatGiB(usedRam)} / ${formatGiB(totalRam)} ($ramPercent%)"
-
-        val statFs = StatFs(filesDir.absolutePath)
-        val totalStorage = statFs.totalBytes
-        val usedStorage = totalStorage - statFs.availableBytes
-
-        val storagePercent =
-            if (totalStorage > 0) {
-                (usedStorage.toDouble() / totalStorage * 100.0).roundToInt()
-            } else {
-                0
-            }
-
-        val fileSystem = getFileSystemType()
-        val battery = traced("ff:battery") { getBatterySnapshot() }
-
-        val soc = traced("ff:soc") { getSocName() }
-        val locale = resources.configuration.locales[0].toLanguageTag()
-
-        val nativeLines =
-            traced("ff:jni") {
-                getStaticNativeLines() + getDynamicNativeLines()
-            }
+        // The JNI signature includes uptime, so the dynamic call stays live
+        // even when hardware and memory modules are disabled.
+        val staticNative = traced("ff:jni") { getParsedStaticNativeLines() }
+        val dynamicNative = traced("ff:jni") { getDynamicNativeLines() }
 
         fun nativeLine(name: String): String? {
-            return nativeLines.firstOrNull {
+            return staticNative[name] ?: dynamicNative.firstOrNull {
                 it.startsWith("$name:")
             }
         }
@@ -591,52 +537,24 @@ class MainActivity : AppCompatActivity() {
         val kernel = nativeLine("Kernel")
         val uptime = nativeLine("Uptime")
         val cpu = nativeLine("CPU")
-
-        val gpu =
-            nativeLine("GPU")
-                ?.removePrefix("GPU: ")
-                ?.trim()
-
-        val gpuVendor =
-            nativeLine("GPU Vendor")
-                ?.removePrefix("GPU Vendor: ")
-                ?.trim()
-
         val swap = nativeLine("Swap")
-
-        val nativeArchitecture =
-            nativeLine("Architecture")
-                ?.removePrefix("Architecture: ")
-                ?.trim()
-
+        val gpu = staticNative["GPU.value"]
+        val gpuVendor = staticNative["GPU Vendor.value"]
+        val nativeArchitecture = staticNative["Architecture.value"]
         val bootloader = nativeLine("Bootloader")
         val verifiedBoot = nativeLine("Verified Boot")
         val root = nativeLine("Root")
 
-        val rawSelinux = nativeLine("SELinux")
-
         val selinux =
-            when (rawSelinux) {
+            when (val rawSelinux = nativeLine("SELinux")) {
                 null,
                 "SELinux: Unknown" -> "SELinux: Unknown [Restricted]"
                 else -> rawSelinux
             }
 
-        val openGlFull =
-            cleanOpenGlValue(
-                nativeLine("OpenGL ES")
-            )
-
-        val openGlVersion =
-            getOpenGlVersion(openGlFull)
-
-        val vulkan =
-            nativeLine("Vulkan")
-                ?.removePrefix("Vulkan: ")
-                ?.trim()
-
-        val networkLines = traced("ff:network") { getNetworkLines() }
-        val thermalLines = traced("ff:thermal") { getThermalLines() }
+        val openGlFull = staticNative["OpenGL ES.value"]
+        val openGlVersion = staticNative["OpenGL ES.version"]
+        val vulkan = staticNative["Vulkan.value"]
 
         val infoLines = mutableListOf<String>()
 
@@ -675,77 +593,138 @@ class MainActivity : AppCompatActivity() {
 
         val groups = linkedMapOf<String, List<String>>()
 
-        groups[MODULE_DISPLAY] =
-            buildDisplayLines(
-                mode = mode,
-                displayText = displayText,
-                density = density,
-                orientation = orientation
-            )
+        if (isModuleEnabled(MODULE_DISPLAY)) {
+            val displayText = run {
+                @Suppress("DEPRECATION")
+                val displayMode = windowManager.defaultDisplay.mode
 
-        groups[MODULE_HARDWARE] =
-            buildHardwareLines(
-                mode = mode,
-                soc = soc,
-                cpu = cpu,
-                gpu = gpu,
-                gpuVendor = gpuVendor
-            )
+                "${displayMode.physicalWidth}x${displayMode.physicalHeight} @ " +
+                        "${displayMode.refreshRate.roundToInt()} Hz"
+            }
 
-        groups[MODULE_GRAPHICS] =
-            buildGraphicsLines(
-                mode = mode,
-                openGlFull = openGlFull,
-                openGlVersion = openGlVersion,
-                vulkan = vulkan
-            )
+            groups[MODULE_DISPLAY] =
+                buildDisplayLines(
+                    mode = mode,
+                    displayText = displayText,
+                    density = resources.displayMetrics.densityDpi,
+                    orientation = getOrientationName()
+                )
+        }
 
-        groups[MODULE_MEMORY] =
-            buildMemoryLines(
-                mode = mode,
-                memoryText = memoryText,
-                swap = swap,
-                usedStorage = usedStorage,
-                totalStorage = totalStorage,
-                storagePercent = storagePercent,
-                fileSystem = fileSystem
-            )
+        if (isModuleEnabled(MODULE_HARDWARE)) {
+            groups[MODULE_HARDWARE] =
+                buildHardwareLines(
+                    mode = mode,
+                    soc = traced("ff:soc") { getSocName() },
+                    cpu = cpu,
+                    gpu = gpu,
+                    gpuVendor = gpuVendor
+                )
+        }
 
-        groups[MODULE_NETWORK] =
-            buildNetworkOutput(
-                mode = mode,
-                networkLines = networkLines
-            )
+        if (isModuleEnabled(MODULE_GRAPHICS)) {
+            groups[MODULE_GRAPHICS] =
+                buildGraphicsLines(
+                    mode = mode,
+                    openGlFull = openGlFull,
+                    openGlVersion = openGlVersion,
+                    vulkan = vulkan
+                )
+        }
 
-        groups[MODULE_POWER] =
-            buildPowerLines(
-                mode = mode,
-                deviceType = deviceType,
-                battery = battery,
-                thermalLines = thermalLines
-            )
+        if (isModuleEnabled(MODULE_MEMORY)) {
+            val memoryText = run {
+                val activityManager =
+                    getSystemService(ACTIVITY_SERVICE) as ActivityManager
 
-        groups[MODULE_ANDROID] =
-            buildAndroidLines(
-                mode = mode,
-                nativeArchitecture = nativeArchitecture,
-                allAbis = allAbis
-            )
+                val memoryInfo = ActivityManager.MemoryInfo()
+                activityManager.getMemoryInfo(memoryInfo)
 
-        groups[MODULE_SECURITY] =
-            buildSecurityLines(
-                mode = mode,
-                selinux = selinux,
-                bootloader = bootloader,
-                verifiedBoot = verifiedBoot,
-                root = root
-            )
+                val totalRam = memoryInfo.totalMem
+                val usedRam = totalRam - memoryInfo.availMem
 
-        groups[MODULE_MISC] =
-            buildMiscLines(
-                mode = mode,
-                locale = locale
-            )
+                val ramPercent =
+                    if (totalRam > 0) {
+                        (usedRam.toDouble() / totalRam * 100.0).roundToInt()
+                    } else {
+                        0
+                    }
+
+                "${formatGiB(usedRam)} / ${formatGiB(totalRam)} ($ramPercent%)"
+            }
+
+            val storage = run {
+                val statFs = StatFs(filesDir.absolutePath)
+                val totalStorage = statFs.totalBytes
+                val usedStorage = totalStorage - statFs.availableBytes
+
+                val storagePercent =
+                    if (totalStorage > 0) {
+                        (usedStorage.toDouble() / totalStorage * 100.0).roundToInt()
+                    } else {
+                        0
+                    }
+
+                Triple(usedStorage, totalStorage, storagePercent)
+            }
+
+            groups[MODULE_MEMORY] =
+                buildMemoryLines(
+                    mode = mode,
+                    memoryText = memoryText,
+                    swap = swap,
+                    usedStorage = storage.first,
+                    totalStorage = storage.second,
+                    storagePercent = storage.third,
+                    fileSystem = getFileSystemType()
+                )
+        }
+
+        if (isModuleEnabled(MODULE_NETWORK)) {
+            groups[MODULE_NETWORK] =
+                buildNetworkOutput(
+                    mode = mode,
+                    networkLines = traced("ff:network") { getNetworkLines() }
+                )
+        }
+
+        if (isModuleEnabled(MODULE_POWER)) {
+            groups[MODULE_POWER] =
+                buildPowerLines(
+                    mode = mode,
+                    deviceType = deviceType,
+                    battery = traced("ff:battery") { getBatterySnapshot() },
+                    thermalLines = traced("ff:thermal") { getThermalLines() }
+                )
+        }
+
+        if (isModuleEnabled(MODULE_ANDROID)) {
+            groups[MODULE_ANDROID] =
+                buildAndroidLines(
+                    mode = mode,
+                    nativeArchitecture = nativeArchitecture,
+                    allAbis = allAbis
+                )
+        }
+
+        if (isModuleEnabled(MODULE_SECURITY)) {
+            groups[MODULE_SECURITY] =
+                buildSecurityLines(
+                    mode = mode,
+                    selinux = selinux,
+                    bootloader = bootloader,
+                    verifiedBoot = verifiedBoot,
+                    root = root
+                )
+        }
+
+        if (isModuleEnabled(MODULE_MISC)) {
+            groups[MODULE_MISC] =
+                buildMiscLines(
+                    mode = mode,
+                    locale = resources.configuration.locales[0].toLanguageTag()
+                )
+        }
 
         getModuleOrder().forEach { module ->
             if (!isModuleEnabled(module)) {
@@ -805,6 +784,33 @@ class MainActivity : AppCompatActivity() {
             // Not cached, so the next tick tries again.
             emptyList()
         }
+    }
+
+    private fun getParsedStaticNativeLines(): Map<String, String> {
+        cachedParsedStaticNativeLines?.let { return it }
+
+        val lines = getStaticNativeLines()
+        val parsed = linkedMapOf<String, String>()
+        lines.forEach { line ->
+            val name = line.substringBefore(":")
+            if (":" in line && name !in parsed) {
+                parsed[name] = line
+                parsed["$name.value"] = line.removePrefix("$name: ").trim()
+            }
+        }
+        val openGlFull = cleanOpenGlValue(parsed["OpenGL ES"])
+        if (openGlFull != null) {
+            parsed["OpenGL ES.value"] = openGlFull
+            getOpenGlVersion(openGlFull)?.let { parsed["OpenGL ES.version"] = it }
+        } else {
+            parsed.remove("OpenGL ES.value")
+        }
+
+        // A failed JNI call must remain retryable on the next tick.
+        if (cachedStaticNativeLines != null) {
+            cachedParsedStaticNativeLines = parsed
+        }
+        return parsed
     }
 
     /** Uptime, CPU cores online, swap: cheap, so read every tick. */
@@ -1479,6 +1485,18 @@ class MainActivity : AppCompatActivity() {
     // ==================================================
 
     private fun getDeviceType(): String {
+        val fixedType = cachedDeviceType ?: synchronized(Companion) {
+            cachedDeviceType ?: readFixedDeviceType().also { cachedDeviceType = it }
+        }
+
+        // Phone/tablet classification follows configuration width (folding,
+        // external displays); only build identity and package features are fixed.
+        return fixedType.ifEmpty {
+            if (resources.configuration.smallestScreenWidthDp >= 600) "Tablet" else "Phone"
+        }
+    }
+
+    private fun readFixedDeviceType(): String {
         val pm = packageManager
 
         val identity =
@@ -1628,14 +1646,7 @@ class MainActivity : AppCompatActivity() {
             return "TV"
         }
 
-        val smallestWidth =
-            resources.configuration.smallestScreenWidthDp
-
-        return if (smallestWidth >= 600) {
-            "Tablet"
-        } else {
-            "Phone"
-        }
+        return ""
     }
 
     // ==================================================
@@ -1643,6 +1654,14 @@ class MainActivity : AppCompatActivity() {
     // ==================================================
 
     private fun getSocName(): String {
+        cachedSocName?.let { return it }
+
+        return synchronized(Companion) {
+            cachedSocName ?: readSocName().also { cachedSocName = it }
+        }
+    }
+
+    private fun readSocName(): String {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val manufacturer =
                 Build.SOC_MANUFACTURER.trim()
@@ -1717,6 +1736,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getFeatureSummary(): String {
+        val fixedFeatures = cachedStaticFeatures ?: synchronized(Companion) {
+            cachedStaticFeatures ?: readStaticFeatures().also { cachedStaticFeatures = it }
+        }
+        val features = fixedFeatures.toMutableList()
+
+        // USB cameras can appear after startup. Keep Camera between BLE and Touch.
+        if (hasCamera()) {
+            val cameraIndex = features.indexOfFirst { it == "Touch" || it == "GPS" }
+            features.add(if (cameraIndex < 0) features.size else cameraIndex, "Camera")
+        }
+
+        return if (features.isEmpty()) "None reported" else features.joinToString(", ")
+    }
+
+    private fun readStaticFeatures(): List<String> {
         val pm = packageManager
         val features = mutableListOf<String>()
 
@@ -1744,10 +1778,6 @@ class MainActivity : AppCompatActivity() {
             features.add("BLE")
         }
 
-        if (hasCamera()) {
-            features.add("Camera")
-        }
-
         if (
             pm.hasSystemFeature(
                 PackageManager.FEATURE_TOUCHSCREEN
@@ -1764,11 +1794,7 @@ class MainActivity : AppCompatActivity() {
             features.add("GPS")
         }
 
-        return if (features.isEmpty()) {
-            "None reported"
-        } else {
-            features.joinToString(", ")
-        }
+        return features
     }
 
     /**
@@ -1794,6 +1820,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getAppVersion(): String {
+        cachedAppVersion?.let { return it }
+
+        return synchronized(Companion) {
+            cachedAppVersion ?: readAppVersion().also {
+                if (it != "Unknown") {
+                    cachedAppVersion = it
+                }
+            }
+        }
+    }
+
+    private fun readAppVersion(): String {
         return try {
             @Suppress("DEPRECATION")
             packageManager
@@ -1851,6 +1889,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getFileSystemType(): String {
+        cachedFileSystemType?.let { return it }
+
+        return synchronized(Companion) {
+            cachedFileSystemType ?: readFileSystemType().also {
+                if (it != "Unknown") {
+                    cachedFileSystemType = it
+                }
+            }
+        }
+    }
+
+    private fun readFileSystemType(): String {
         if (
             Build.VERSION.SDK_INT <
             Build.VERSION_CODES.O
@@ -3335,6 +3385,38 @@ class MainActivity : AppCompatActivity() {
         // mode toggle, folding), and the GPU is only probed once.
         @Volatile
         private var cachedStaticNativeLines: List<String>? = null
+
+        // Build identity and installed-package metadata survive activity recreation.
+        // Volatile publication also serves main-thread device-type callers.
+        @Volatile
+        private var cachedDeviceType: String? = null
+
+        @Volatile
+        private var cachedSocName: String? = null
+
+        @Volatile
+        private var cachedAppVersion: String? = null
+
+        @Volatile
+        private var cachedFileSystemType: String? = null
+
+        @Volatile
+        private var cachedStaticFeatures: List<String>? = null
+
+        @Volatile
+        private var cachedParsedStaticNativeLines: Map<String, String>? = null
+
+        private val cachedManufacturer =
+            Build.MANUFACTURER.replaceFirstChar {
+                if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
+            }
+
+        private val cachedFirstAbi = Build.SUPPORTED_ABIS.firstOrNull() ?: "Unknown"
+        private val cachedAllAbis =
+            Build.SUPPORTED_ABIS
+                .takeIf { it.isNotEmpty() }
+                ?.joinToString(", ")
+                ?: "Unknown"
 
         private const val PREFS_NAME =
             "fastfetch_settings"
