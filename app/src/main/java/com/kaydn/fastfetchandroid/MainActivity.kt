@@ -29,6 +29,7 @@ import android.text.Editable
 import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.SpannedString
 import android.text.TextPaint
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
@@ -46,8 +47,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.text.PrecomputedTextCompat
-import androidx.core.widget.TextViewCompat
 import com.kaydn.fastfetchandroid.databinding.ActivityMainBinding
 import java.net.Inet4Address
 import java.net.Inet6Address
@@ -68,9 +67,21 @@ class MainActivity : AppCompatActivity() {
 
     private var lastPlainOutput = ""
 
+    // What the info TextView's buffer holds right now (plain text, one
+    // entry per line, and the accent color it was drawn with), so the
+    // next update can change only the lines that differ. Main thread only.
+    private var shownLineTexts: List<String>? = null
+    private var shownAccentColor = 0
+
     // Only touched on the refresh thread (from buildFastfetchOutput).
     private var cachedThermalHeadroom: Float? = null
     private var lastThermalHeadroomRead = 0L
+
+    // Only touched on the refresh thread (from renderLines): last tick's
+    // colored and measured lines, keyed by their text, and the style they
+    // were made with.
+    private var lineCache = HashMap<String, RenderedLine>()
+    private var lineCacheStyle: LineStyle? = null
 
     private val quicksandTypeface by lazy {
         ResourcesCompat.getFont(
@@ -118,16 +129,38 @@ class MainActivity : AppCompatActivity() {
     }
 
     private data class FastfetchResult(
-        val renderedText: CharSequence,
+        // The info lines as plain text, in order (no color blocks).
+        val infoLines: List<String>,
         val plainText: String,
         val showLogo: Boolean,
-        // renderedText with its glyphs already measured on the refresh
-        // thread, so the UI thread can skip that work. Null if
-        // precomputing failed; renderedText is the fallback.
-        val precomputedText: PrecomputedTextCompat? = null,
+        // Every on-screen line (the info lines plus the color blocks),
+        // colored and without newlines. Filled in on the refresh thread.
+        val lines: List<CharSequence> = emptyList(),
+        // The same lines as plain text, so the UI thread can tell which
+        // ones changed since the last update.
+        val lineTexts: List<String> = emptyList(),
+        // The accent color the lines were colored with.
+        val accentColor: Int = 0,
         // Exact width the text needs, in px, measured on the refresh
         // thread. -1 if unknown (the view stays wrap_content).
         val textWidthPx: Int = -1
+    )
+
+    // One colored output line and its width in px, kept between ticks.
+    // Never changed after it's made, so both threads can read it.
+    private class RenderedLine(
+        val text: CharSequence,
+        val widthPx: Float
+    )
+
+    // Everything that changes how a line looks or measures. When any of
+    // it changes, the line cache starts over.
+    private data class LineStyle(
+        val accentColor: Int,
+        val typeface: Typeface?,
+        val textSize: Float,
+        val textScaleX: Float,
+        val letterSpacing: Float
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -234,15 +267,8 @@ class MainActivity : AppCompatActivity() {
         refreshInFlight = true
         val generation = refreshGeneration
 
-        // Read on the UI thread (it looks at the TextView's paint), then
-        // handed to the refresh thread, which measures the text against
-        // it. Immutable, so sharing it across threads is safe.
-        val textParams =
-            TextViewCompat.getTextMetricsParams(binding.sampleText)
-
         // A private copy of the TextView's paint (font, size), so the
-        // refresh thread can measure the text width without touching
-        // the real view.
+        // refresh thread can measure lines without touching the real view.
         val measurePaint = TextPaint(binding.sampleText.paint)
 
         refreshExecutor.execute {
@@ -251,22 +277,12 @@ class MainActivity : AppCompatActivity() {
                     try {
                         val output = traced("ff:build") { buildFastfetchOutput() }
 
-                        output.copy(
-                            precomputedText =
-                                traced("ff:precompute") {
-                                    precompute(
-                                        output.renderedText,
-                                        textParams
-                                    )
-                                },
-                            textWidthPx =
-                                traced("ff:measureTextWidth") {
-                                    measureTextWidth(
-                                        output.renderedText,
-                                        measurePaint
-                                    )
-                                }
-                        )
+                        traced("ff:renderLines") {
+                            renderLines(
+                                output,
+                                measurePaint
+                            )
+                        }
                     } catch (t: Throwable) {
                         Log.e(TAG, "Refresh failed", t)
                         null
@@ -325,10 +341,18 @@ class MainActivity : AppCompatActivity() {
             updateOutputArrangement()
         }
 
-        // setText always forces a full re-layout of the text, which is
-        // the expensive part on slow devices, so skip it when nothing
-        // changed since the last tick.
-        if (forceNextApply || result.plainText != lastPlainOutput) {
+        // Width first: with a fixed width, changing the text only redraws
+        // instead of re-laying out the whole screen (that was ~21 ms per
+        // update on the onn stick). Only an actual width change relayouts.
+        fitOutputWidth(result.textWidthPx)
+
+        // On most ticks nothing on screen changes, so the TextView isn't
+        // touched at all.
+        if (
+            forceNextApply ||
+            result.plainText != lastPlainOutput ||
+            result.accentColor != shownAccentColor
+        ) {
             setOutputText(result)
             lastPlainOutput = result.plainText
         }
@@ -337,31 +361,123 @@ class MainActivity : AppCompatActivity() {
         setOutputActionsEnabled(true)
     }
 
+    /**
+     * v1.1 replaced the whole text every time anything changed, so the
+     * UI thread re-recorded the drawing of all ~30 lines (~7 ms on the onn
+     * stick) when usually only Memory/Swap or Uptime moved. Now the text
+     * lives in an editable buffer and only the lines that differ are
+     * swapped out. With an editable buffer the TextView uses a
+     * DynamicLayout, which re-measures just those lines and re-records
+     * just the chunk of text they sit in.
+     */
     private fun setOutputText(result: FastfetchResult) {
-        // Width first: with a fixed width, setText can reuse the current
-        // size and only redraw, instead of re-measuring all the text
-        // and re-laying out the whole screen (that was ~21 ms per update
-        // on the onn stick). Only an actual width change relayouts.
-        fitOutputWidth(result.textWidthPx)
+        val editable = binding.sampleText.editableText
+        val shown = shownLineTexts
 
-        val precomputed = result.precomputedText
+        // A new accent color or a settings change touches every line, so
+        // those get a fresh full text instead.
+        val updatedInPlace =
+            editable != null &&
+                    shown != null &&
+                    !forceNextApply &&
+                    result.accentColor == shownAccentColor &&
+                    updateChangedLines(
+                        editable,
+                        shown,
+                        result
+                    )
 
-        if (precomputed != null) {
-            try {
-                TextViewCompat.setPrecomputedText(
-                    binding.sampleText,
-                    precomputed
-                )
-                return
-            } catch (e: IllegalArgumentException) {
-                // The TextView's font or size changed after this text
-                // was measured, so the measurements don't fit anymore.
-                // Fall through to the normal (slower) path once.
-                Log.d(TAG, "Precomputed text no longer matches", e)
-            }
+        if (!updatedInPlace) {
+            replaceAllLines(result)
         }
 
-        binding.sampleText.text = result.renderedText
+        shownLineTexts = result.lineTexts
+        shownAccentColor = result.accentColor
+    }
+
+    /**
+     * Swaps out only the lines that differ from what's on screen. Returns
+     * false, changing nothing, if lines were added or removed (a network
+     * line appearing, a module toggled) or the buffer doesn't look like
+     * expected, so the caller replaces everything instead.
+     */
+    private fun updateChangedLines(
+        editable: Editable,
+        shown: List<String>,
+        result: FastfetchResult
+    ): Boolean {
+        val next = result.lineTexts
+
+        if (shown.size != next.size) {
+            return false
+        }
+
+        // Where each line starts in the buffer (lines are joined by '\n').
+        val starts = IntArray(shown.size)
+        var offset = 0
+
+        shown.forEachIndexed { index, line ->
+            starts[index] = offset
+            offset += line.length + 1
+        }
+
+        if (offset - 1 != editable.length) {
+            return false
+        }
+
+        // Bottom-up, so the start offsets of the lines above stay valid
+        // when a line below changes length.
+        for (index in shown.indices.reversed()) {
+            if (shown[index] == next[index]) {
+                continue
+            }
+
+            val start = starts[index]
+            val end = start + shown[index].length
+
+            // The old line's colors go first, so none of them can end up
+            // stretched over the new text.
+            editable
+                .getSpans(
+                    start,
+                    end,
+                    ForegroundColorSpan::class.java
+                )
+                .forEach { span ->
+                    if (
+                        editable.getSpanStart(span) >= start &&
+                        editable.getSpanEnd(span) <= end
+                    ) {
+                        editable.removeSpan(span)
+                    }
+                }
+
+            editable.replace(
+                start,
+                end,
+                result.lines[index]
+            )
+        }
+
+        return true
+    }
+
+    private fun replaceAllLines(result: FastfetchResult) {
+        val text = SpannableStringBuilder()
+
+        result.lines.forEachIndexed { index, line ->
+            if (index > 0) {
+                text.append('\n')
+            }
+
+            text.append(line)
+        }
+
+        // EDITABLE, so later updates can change single lines in place.
+        binding.sampleText.setText(
+            text,
+            TextView.BufferType.EDITABLE
+        )
     }
 
     private fun fitOutputWidth(textWidthPx: Int) {
@@ -386,36 +502,6 @@ class MainActivity : AppCompatActivity() {
         if (targetWidth != outputTextWidthPx) {
             outputTextWidthPx = targetWidth
             updateOutputArrangement()
-        }
-    }
-
-    /**
-     * Runs on the refresh thread. Same calculation TextView does for a
-     * wrap_content width, rounded up the same way, so the text never
-     * wraps.
-     */
-    private fun measureTextWidth(
-        text: CharSequence,
-        paint: TextPaint
-    ): Int {
-        return try {
-            ceil(Layout.getDesiredWidth(text, paint)).toInt()
-        } catch (t: Throwable) {
-            Log.w(TAG, "Couldn't measure output width", t)
-            -1
-        }
-    }
-
-    /** Runs on the refresh thread. */
-    private fun precompute(
-        text: CharSequence,
-        params: PrecomputedTextCompat.Params
-    ): PrecomputedTextCompat? {
-        return try {
-            PrecomputedTextCompat.create(text, params)
-        } catch (t: Throwable) {
-            Log.w(TAG, "Couldn't precompute output text", t)
-            null
         }
     }
 
@@ -935,8 +1021,10 @@ class MainActivity : AppCompatActivity() {
                 infoLines.joinToString("\n")
             }
 
+        // Coloring and measuring happen in renderLines(), which can reuse
+        // last tick's work for lines that didn't change.
         return FastfetchResult(
-            renderedText = traced("ff:renderInfo") { renderInfo(infoLines) },
+            infoLines = infoLines,
             plainText = plainText,
             showLogo = includeLogo
         )
@@ -2491,49 +2579,122 @@ class MainActivity : AppCompatActivity() {
                 " ".repeat(right)
     }
 
-    private fun renderInfo(
-        infoLines: List<String>
-    ): SpannableStringBuilder {
-        val output = SpannableStringBuilder()
+    /**
+     * Runs on the refresh thread. Colors and measures every on-screen
+     * line, reusing last tick's work for lines whose text didn't change.
+     * That's nearly all of them: usually only Memory/Swap or Uptime move.
+     * v1.1 re-colored, re-measured and pre-laid-out the whole block on
+     * every tick (~11 ms of the ~24 ms tick on the onn stick).
+     */
+    private fun renderLines(
+        output: FastfetchResult,
+        paint: TextPaint
+    ): FastfetchResult {
         val accentColor = getAccentColor()
 
-        infoLines.forEachIndexed { index, line ->
-            if (index == 0 || index == 1) {
-                output.appendColored(
-                    line,
-                    accentColor
-                )
-            } else {
-                appendModuleLine(
-                    output,
-                    line,
+        val style =
+            LineStyle(
+                accentColor = accentColor,
+                typeface = paint.typeface,
+                textSize = paint.textSize,
+                textScaleX = paint.textScaleX,
+                letterSpacing = paint.letterSpacing
+            )
+
+        if (style != lineCacheStyle) {
+            lineCache.clear()
+            lineCacheStyle = style
+        }
+
+        val texts = output.infoLines + COLOR_BLOCKS_TEXT
+        val nextCache = HashMap<String, RenderedLine>(texts.size)
+        var widestPx = 0f
+
+        val lines =
+            texts.mapIndexed { index, text ->
+                // The two header lines and the color blocks are colored
+                // differently from a module line with the same text, so
+                // they get their own cache keys.
+                val key =
+                    when {
+                        index == texts.lastIndex -> "\u0002$text"
+                        index < 2 -> "\u0001$text"
+                        else -> text
+                    }
+
+                val line =
+                    lineCache[key]
+                        ?: RenderedLine(
+                            text = renderLine(
+                                index,
+                                texts.lastIndex,
+                                text,
+                                accentColor
+                            ),
+                            // Colors don't change a line's width, so the
+                            // plain text measures the same.
+                            widthPx = Layout.getDesiredWidth(
+                                text,
+                                paint
+                            )
+                        )
+
+                nextCache[key] = line
+                widestPx = maxOf(widestPx, line.widthPx)
+                line.text
+            }
+
+        // Only this tick's lines are kept, so the cache can't grow.
+        lineCache = nextCache
+
+        return output.copy(
+            lines = lines,
+            lineTexts = texts,
+            accentColor = accentColor,
+            // Rounded up the same way TextView sizes wrap_content text,
+            // so no line ever wraps.
+            textWidthPx = ceil(widestPx).toInt()
+        )
+    }
+
+    private fun renderLine(
+        index: Int,
+        lastIndex: Int,
+        text: String,
+        accentColor: Int
+    ): CharSequence {
+        val line = SpannableStringBuilder()
+
+        when {
+            index == lastIndex -> {
+                COLOR_BLOCK_COLORS.forEach { color ->
+                    line.appendColored(
+                        COLOR_BLOCK,
+                        color
+                    )
+                }
+            }
+
+            // Title and separator.
+            index < 2 -> {
+                line.appendColored(
+                    text,
                     accentColor
                 )
             }
 
-            output.append("\n")
+            else -> {
+                appendModuleLine(
+                    line,
+                    text,
+                    accentColor
+                )
+            }
         }
 
-        val blocks =
-            listOf(
-                Color.rgb(70, 70, 70),
-                Color.rgb(255, 80, 80),
-                Color.rgb(80, 220, 100),
-                Color.rgb(255, 220, 80),
-                Color.rgb(80, 130, 255),
-                Color.rgb(220, 90, 255),
-                Color.rgb(80, 220, 255),
-                Color.rgb(235, 235, 235)
-            )
-
-        blocks.forEach { color ->
-            output.appendColored(
-                "██",
-                color
-            )
-        }
-
-        return output
+        // Immutable, since the UI thread reads it while the refresh
+        // thread may be working on the next tick.
+        return SpannedString(line)
     }
 
     private fun appendModuleLine(
@@ -3595,6 +3756,25 @@ class MainActivity : AppCompatActivity() {
                 .takeIf { it.isNotEmpty() }
                 ?.joinToString(", ")
                 ?: "Unknown"
+
+        // The palette row under the info text.
+        private const val COLOR_BLOCK =
+            "██"
+
+        private val COLOR_BLOCK_COLORS =
+            listOf(
+                Color.rgb(70, 70, 70),
+                Color.rgb(255, 80, 80),
+                Color.rgb(80, 220, 100),
+                Color.rgb(255, 220, 80),
+                Color.rgb(80, 130, 255),
+                Color.rgb(220, 90, 255),
+                Color.rgb(80, 220, 255),
+                Color.rgb(235, 235, 235)
+            )
+
+        private val COLOR_BLOCKS_TEXT =
+            COLOR_BLOCK.repeat(COLOR_BLOCK_COLORS.size)
 
         // Output arrangement (see OutputLayout). The wide margin and the
         // side-by-side gap come from activity_main.xml.
