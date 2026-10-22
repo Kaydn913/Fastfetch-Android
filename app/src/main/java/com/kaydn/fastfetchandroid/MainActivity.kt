@@ -227,29 +227,35 @@ class MainActivity : AppCompatActivity() {
         val measurePaint = TextPaint(binding.sampleText.paint)
 
         refreshExecutor.execute {
-            val result =
-                try {
-                    val output = buildFastfetchOutput()
+            traced("ff:tick") {
+                val result =
+                    try {
+                        val output = traced("ff:build") { buildFastfetchOutput() }
 
-                    output.copy(
-                        precomputedText =
-                            precompute(
-                                output.renderedText,
-                                textParams
-                            ),
-                        textWidthPx =
-                            measureTextWidth(
-                                output.renderedText,
-                                measurePaint
-                            )
-                    )
-                } catch (t: Throwable) {
-                    Log.e(TAG, "Refresh failed", t)
-                    null
+                        output.copy(
+                            precomputedText =
+                                traced("ff:precompute") {
+                                    precompute(
+                                        output.renderedText,
+                                        textParams
+                                    )
+                                },
+                            textWidthPx =
+                                traced("ff:measureTextWidth") {
+                                    measureTextWidth(
+                                        output.renderedText,
+                                        measurePaint
+                                    )
+                                }
+                        )
+                    } catch (t: Throwable) {
+                        Log.e(TAG, "Refresh failed", t)
+                        null
+                    }
+
+                refreshHandler.post {
+                    onRefreshFinished(generation, result)
                 }
-
-            refreshHandler.post {
-                onRefreshFinished(generation, result)
             }
         }
     }
@@ -493,9 +499,18 @@ class MainActivity : AppCompatActivity() {
     // OUTPUT BUILDER
     // ==================================================
 
+    private inline fun <T> traced(name: String, block: () -> T): T {
+        android.os.Trace.beginSection(name)
+        try {
+            return block()
+        } finally {
+            android.os.Trace.endSection()
+        }
+    }
+
     // Runs on the refresh thread. Must not touch views.
     private fun buildFastfetchOutput(): FastfetchResult {
-        val deviceType = getDeviceType()
+        val deviceType = traced("ff:deviceType") { getDeviceType() }
         val requestedMode = getOutputMode()
         val mode = if (deviceType == "Watch") MODE_WATCH else requestedMode
         val watchStyle = mode == MODE_WATCH
@@ -557,13 +572,15 @@ class MainActivity : AppCompatActivity() {
             }
 
         val fileSystem = getFileSystemType()
-        val battery = getBatterySnapshot()
+        val battery = traced("ff:battery") { getBatterySnapshot() }
 
-        val soc = getSocName()
+        val soc = traced("ff:soc") { getSocName() }
         val locale = resources.configuration.locales[0].toLanguageTag()
 
         val nativeLines =
-            getStaticNativeLines() + getDynamicNativeLines()
+            traced("ff:jni") {
+                getStaticNativeLines() + getDynamicNativeLines()
+            }
 
         fun nativeLine(name: String): String? {
             return nativeLines.firstOrNull {
@@ -618,8 +635,8 @@ class MainActivity : AppCompatActivity() {
                 ?.removePrefix("Vulkan: ")
                 ?.trim()
 
-        val networkLines = getNetworkLines()
-        val thermalLines = getThermalLines()
+        val networkLines = traced("ff:network") { getNetworkLines() }
+        val thermalLines = traced("ff:thermal") { getThermalLines() }
 
         val infoLines = mutableListOf<String>()
 
@@ -762,7 +779,7 @@ class MainActivity : AppCompatActivity() {
             }
 
         return FastfetchResult(
-            renderedText = renderInfo(infoLines),
+            renderedText = traced("ff:renderInfo") { renderInfo(infoLines) },
             plainText = plainText,
             showLogo = includeLogo
         )
@@ -1309,7 +1326,7 @@ class MainActivity : AppCompatActivity() {
                 listOf(
                     "Locale: $locale",
                     "App: Fastfetch Android ${getAppVersion()}",
-                    "Features: ${getFeatureSummary()}"
+                    "Features: ${traced("ff:features") { getFeatureSummary() }}"
                 )
             }
 
@@ -1317,7 +1334,7 @@ class MainActivity : AppCompatActivity() {
                 listOf(
                     "Locale: $locale",
                     "App: Fastfetch Android ${getAppVersion()}",
-                    "Features: ${getFeatureSummary()}"
+                    "Features: ${traced("ff:features") { getFeatureSummary() }}"
                 )
             }
         }
