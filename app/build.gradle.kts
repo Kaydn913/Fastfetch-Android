@@ -40,6 +40,17 @@ android {
                 enable = false
             }
         }
+
+        // Release settings, but signed with the debug key and installed
+        // under its own package name, so it sits next to the real app on
+        // a test device: no uninstalling, no signed build needed. Used for
+        // on-device testing and before/after performance runs.
+        create("bench") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".bench"
+            versionNameSuffix = "-bench"
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     compileOptions {
