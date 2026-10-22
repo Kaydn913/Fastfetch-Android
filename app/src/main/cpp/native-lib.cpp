@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <atomic>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -51,7 +52,17 @@ static long long readNumberFile(const std::string& path) {
 }
 
 static long long getMaximumCpuFrequencyKHz() {
+    // Publish only a complete hardware-max probe. Scaling limits can change
+    // with thermal caps, and an unreadable core may come back online later.
+    static std::atomic<long long> cachedHardwareMaxKHz{-1};
+    const long long cached = cachedHardwareMaxKHz.load(std::memory_order_relaxed);
+
+    if (cached > 0) {
+        return cached;
+    }
+
     long cores = sysconf(_SC_NPROCESSORS_CONF);
+    bool allHardwareMax = cores > 0;
 
     if (cores < 1) {
         cores = 32;
@@ -70,6 +81,7 @@ static long long getMaximumCpuFrequencyKHz() {
                 readNumberFile(base + "cpuinfo_max_freq");
 
         if (freq <= 0) {
+            allHardwareMax = false;
             freq =
                     readNumberFile(base + "scaling_max_freq");
         }
@@ -99,6 +111,12 @@ static long long getMaximumCpuFrequencyKHz() {
                 highest = freq;
             }
         }
+    }
+
+    if (allHardwareMax && highest > 0) {
+        // This atomic holds the entire cached result; no other data needs
+        // ordering. Concurrent complete probes publish the same hardware max.
+        cachedHardwareMaxKHz.store(highest, std::memory_order_relaxed);
     }
 
     return highest;
