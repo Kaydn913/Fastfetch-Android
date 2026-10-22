@@ -39,6 +39,7 @@ import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
@@ -96,6 +97,22 @@ class MainActivity : AppCompatActivity() {
     private var refreshPending = false
     private var forceNextApply = true
 
+    // How the logo and the text share the width (see OutputLayout and
+    // the OUTPUT ARRANGEMENT section). Main thread only.
+    private var outputArrangement: OutputLayout.Arrangement? = null
+
+    // Width the info TextView was last pinned to, in px (< 0 = unknown).
+    private var outputTextWidthPx = -1
+
+    // Measured once, since the logo's text and font never change.
+    private var logoWidthPx = -1
+
+    // activity_main.xml's own end padding (220dp) and logo gap (18dp x
+    // 1dp), read in onCreate so the XML stays the single source.
+    private var wideEndPaddingPx = 0
+    private var gapWidthPx = 0
+    private var gapHeightPx = 0
+
     private val refreshRunnable = Runnable {
         requestRefresh()
     }
@@ -124,6 +141,8 @@ class MainActivity : AppCompatActivity() {
         applyMainUiFont()
 
         binding.logoText.text = buildAndroidLogo()
+
+        setUpOutputArrangement()
 
         binding.settingsButton.setOnClickListener {
             showSettingsDialog(firstRun = false)
@@ -303,6 +322,7 @@ class MainActivity : AppCompatActivity() {
 
         if (binding.logoText.visibility != logoVisibility) {
             binding.logoText.visibility = logoVisibility
+            updateOutputArrangement()
         }
 
         // setText always forces a full re-layout of the text, which is
@@ -359,6 +379,13 @@ class MainActivity : AppCompatActivity() {
         if (params.width != targetWidth) {
             params.width = targetWidth
             view.layoutParams = params
+        }
+
+        // Only a width change can change the arrangement, so most ticks
+        // skip this.
+        if (targetWidth != outputTextWidthPx) {
+            outputTextWidthPx = targetWidth
+            updateOutputArrangement()
         }
     }
 
@@ -493,6 +520,157 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
+    }
+
+    // ==================================================
+    // OUTPUT ARRANGEMENT
+    // ==================================================
+    //
+    // Fits the logo and the text into the width that's actually there
+    // (portrait tablets on Android 16+, narrow windows). OutputLayout
+    // makes the decision; this section measures and applies it. When
+    // there's room, nothing changes from the v1.1 layout.
+
+    private fun setUpOutputArrangement() {
+        // The round watch layout has no logo row, so there's nothing to
+        // arrange there.
+        val scroll =
+            binding.outputScroll
+                ?: return
+
+        val gap =
+            binding.outputGap
+                ?: return
+
+        wideEndPaddingPx = scroll.paddingEnd
+        gapWidthPx = gap.layoutParams.width
+        gapHeightPx = gap.layoutParams.height
+
+        // Catches width changes that don't recreate the activity. Posted,
+        // because changing padding in the middle of a layout pass would
+        // force a second pass right away.
+        scroll.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) {
+                scroll.post {
+                    updateOutputArrangement()
+                }
+            }
+        }
+    }
+
+    private fun updateOutputArrangement() {
+        val scroll =
+            binding.outputScroll
+                ?: return
+
+        val logoVisible =
+            binding.logoText.visibility == View.VISIBLE
+
+        val arrangement =
+            OutputLayout.choose(
+                availableWidth = scroll.width - scroll.paddingStart,
+                logoWidth = if (logoVisible) getLogoWidthPx() else 0,
+                gap = gapWidthPx,
+                textWidth = outputTextWidthPx,
+                wideMargin = wideEndPaddingPx,
+                slimMargin = dpToPx(SLIM_END_MARGIN_DP),
+                slack = dpToPx(ARRANGEMENT_SLACK_DP),
+                current = outputArrangement
+            )
+
+        if (arrangement == outputArrangement) {
+            return
+        }
+
+        outputArrangement = arrangement
+        applyOutputArrangement(arrangement)
+    }
+
+    private fun applyOutputArrangement(
+        arrangement: OutputLayout.Arrangement
+    ) {
+        val scroll =
+            binding.outputScroll
+                ?: return
+
+        val row =
+            binding.outputRow
+                ?: return
+
+        val gap =
+            binding.outputGap
+                ?: return
+
+        val stacked =
+            arrangement == OutputLayout.Arrangement.STACKED
+
+        val endPadding =
+            when (arrangement) {
+                OutputLayout.Arrangement.WIDE ->
+                    wideEndPaddingPx
+
+                OutputLayout.Arrangement.SLIM ->
+                    dpToPx(SLIM_END_MARGIN_DP)
+
+                // The text starts below the logo, well under the settings
+                // button, so it can use the same margin as the left side.
+                OutputLayout.Arrangement.STACKED ->
+                    scroll.paddingStart
+            }
+
+        // Each of these only triggers a relayout when something really
+        // changes.
+        if (scroll.paddingEnd != endPadding) {
+            scroll.setPaddingRelative(
+                scroll.paddingStart,
+                scroll.paddingTop,
+                endPadding,
+                scroll.paddingBottom
+            )
+        }
+
+        row.orientation =
+            if (stacked) {
+                LinearLayout.VERTICAL
+            } else {
+                LinearLayout.HORIZONTAL
+            }
+
+        // Side by side the gap is 18dp wide; stacked it becomes a little
+        // vertical space between the logo and the text.
+        val gapWidth =
+            if (stacked) gapHeightPx else gapWidthPx
+
+        val gapHeight =
+            if (stacked) dpToPx(STACKED_GAP_DP) else gapHeightPx
+
+        val gapParams = gap.layoutParams
+
+        if (
+            gapParams.width != gapWidth ||
+            gapParams.height != gapHeight
+        ) {
+            gapParams.width = gapWidth
+            gapParams.height = gapHeight
+            gap.layoutParams = gapParams
+        }
+    }
+
+    private fun getLogoWidthPx(): Int {
+        if (logoWidthPx < 0) {
+            val logo = binding.logoText
+
+            logoWidthPx =
+                ceil(Layout.getDesiredWidth(logo.text, logo.paint)).toInt() +
+                        logo.totalPaddingLeft +
+                        logo.totalPaddingRight
+        }
+
+        return logoWidthPx
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).roundToInt()
     }
 
     // ==================================================
@@ -3417,6 +3595,19 @@ class MainActivity : AppCompatActivity() {
                 .takeIf { it.isNotEmpty() }
                 ?.joinToString(", ")
                 ?: "Unknown"
+
+        // Output arrangement (see OutputLayout). The wide margin and the
+        // side-by-side gap come from activity_main.xml.
+
+        // The 44dp settings button + its 8dp margin + 4dp breathing room.
+        private const val SLIM_END_MARGIN_DP =
+            56
+
+        private const val STACKED_GAP_DP =
+            12
+
+        private const val ARRANGEMENT_SLACK_DP =
+            16
 
         private const val PREFS_NAME =
             "fastfetch_settings"

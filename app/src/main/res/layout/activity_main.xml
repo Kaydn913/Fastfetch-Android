@@ -5,7 +5,11 @@
     android:background="#000000"
     android:fitsSystemWindows="true">
 
+    <!-- paddingEnd, the row's orientation and the gap's size are adjusted
+         at runtime when the text doesn't fit (portrait tablets, narrow
+         windows). See OutputLayout. -->
     <ScrollView
+        android:id="@+id/output_scroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true"
@@ -21,6 +25,7 @@
             android:scrollbars="horizontal">
 
             <LinearLayout
+                android:id="@+id/output_row"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:gravity="top"
@@ -37,6 +42,7 @@
                     android:textSize="9sp" />
 
                 <Space
+                    android:id="@+id/output_gap"
                     android:layout_width="18dp"
                     android:layout_height="1dp" />
 
