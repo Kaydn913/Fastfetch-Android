@@ -65,7 +65,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 ## Tested Devices
 
 <details open>
-<summary><strong>Phones</strong> (20)</summary>
+<summary><strong>Phones</strong> (21)</summary>
 
 ### BLU
 
@@ -104,6 +104,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
   - Galaxy S22+ (`SM-S906U1`)
 - **Galaxy A series**
   - Galaxy A20e (`SM-A202F`)
+  - Galaxy A54 5G (`SM-A546U`)
 - **Galaxy Z Fold series**
   - Galaxy Z Fold2 5G (`SM-F916B`)
 - **Galaxy Z Flip series**
