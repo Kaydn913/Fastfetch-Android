@@ -1,0 +1,4 @@
+<resources>
+    <!-- Bench builds only: easy to tell apart from the real app. -->
+    <string name="app_name">Fastfetch Bench</string>
+</resources>
