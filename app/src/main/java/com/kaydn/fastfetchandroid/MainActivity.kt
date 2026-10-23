@@ -62,6 +62,12 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
+    // Saved settings (see AppSettings). Lazy, because an Activity can't
+    // open its prefs before onCreate.
+    private val settings by lazy {
+        AppSettings(applicationContext)
+    }
+
     private val logoColor = Color.rgb(61, 220, 132)
     private val normalColor = Color.rgb(232, 232, 232)
 
@@ -205,9 +211,7 @@ class MainActivity : AppCompatActivity() {
             if (shouldShowLogo(isWatchStyle())) View.VISIBLE else View.GONE
 
         binding.root.post {
-            val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-
-            if (!prefs.getBoolean(KEY_SETUP_COMPLETE, false)) {
+            if (!settings.isSetupComplete()) {
                 showSettingsDialog(firstRun = true)
             }
         }
@@ -326,7 +330,7 @@ class MainActivity : AppCompatActivity() {
     private fun scheduleNextRefresh() {
         refreshHandler.removeCallbacks(refreshRunnable)
 
-        val interval = getRefreshIntervalMs()
+        val interval = settings.getRefreshIntervalMs()
         if (isStarted && interval > 0L) {
             refreshHandler.postDelayed(refreshRunnable, interval)
         }
@@ -521,11 +525,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun shouldShowLogo(watchStyle: Boolean): Boolean {
-        return !watchStyle && getShowLogo()
+        return !watchStyle && settings.getShowLogo()
     }
 
     private fun isWatchStyle(): Boolean {
-        return getDeviceType() == "Watch" || getOutputMode() == MODE_WATCH
+        return getDeviceType() == "Watch" || settings.getOutputMode() == MODE_WATCH
     }
 
     private fun applyMainUiFont() {
@@ -563,7 +567,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val infoTypeface =
-            when (getOutputFontName()) {
+            when (settings.getOutputFontName()) {
                 OUTPUT_FONT_ROBOTO ->
                     robotoMonoTypeface
 
@@ -775,11 +779,11 @@ class MainActivity : AppCompatActivity() {
     // Runs on the refresh thread. Must not touch views.
     private fun buildFastfetchOutput(): FastfetchResult {
         val deviceType = traced("ff:deviceType") { getDeviceType() }
-        val requestedMode = getOutputMode()
+        val requestedMode = settings.getOutputMode()
         val mode = if (deviceType == "Watch") MODE_WATCH else requestedMode
         val watchStyle = mode == MODE_WATCH
 
-        val username = getUsername()
+        val username = settings.getUsername()
         val title = "$username@${Build.MODEL}"
         val separator = "-".repeat(title.length)
 
@@ -857,7 +861,7 @@ class MainActivity : AppCompatActivity() {
 
         val groups = linkedMapOf<String, List<String>>()
 
-        if (isModuleEnabled(MODULE_DISPLAY)) {
+        if (settings.isModuleEnabled(MODULE_DISPLAY)) {
             val displayText = run {
                 @Suppress("DEPRECATION")
                 val displayMode = windowManager.defaultDisplay.mode
@@ -875,7 +879,7 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        if (isModuleEnabled(MODULE_HARDWARE)) {
+        if (settings.isModuleEnabled(MODULE_HARDWARE)) {
             groups[MODULE_HARDWARE] =
                 buildHardwareLines(
                     mode = mode,
@@ -886,7 +890,7 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        if (isModuleEnabled(MODULE_GRAPHICS)) {
+        if (settings.isModuleEnabled(MODULE_GRAPHICS)) {
             groups[MODULE_GRAPHICS] =
                 buildGraphicsLines(
                     mode = mode,
@@ -896,7 +900,7 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        if (isModuleEnabled(MODULE_MEMORY)) {
+        if (settings.isModuleEnabled(MODULE_MEMORY)) {
             val memoryText = run {
                 val activityManager =
                     getSystemService(ACTIVITY_SERVICE) as ActivityManager
@@ -944,7 +948,7 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        if (isModuleEnabled(MODULE_NETWORK)) {
+        if (settings.isModuleEnabled(MODULE_NETWORK)) {
             groups[MODULE_NETWORK] =
                 buildNetworkOutput(
                     mode = mode,
@@ -952,7 +956,7 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        if (isModuleEnabled(MODULE_POWER)) {
+        if (settings.isModuleEnabled(MODULE_POWER)) {
             groups[MODULE_POWER] =
                 buildPowerLines(
                     mode = mode,
@@ -962,7 +966,7 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        if (isModuleEnabled(MODULE_ANDROID)) {
+        if (settings.isModuleEnabled(MODULE_ANDROID)) {
             groups[MODULE_ANDROID] =
                 buildAndroidLines(
                     mode = mode,
@@ -971,7 +975,7 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        if (isModuleEnabled(MODULE_SECURITY)) {
+        if (settings.isModuleEnabled(MODULE_SECURITY)) {
             groups[MODULE_SECURITY] =
                 buildSecurityLines(
                     mode = mode,
@@ -982,7 +986,7 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        if (isModuleEnabled(MODULE_MISC)) {
+        if (settings.isModuleEnabled(MODULE_MISC)) {
             groups[MODULE_MISC] =
                 buildMiscLines(
                     mode = mode,
@@ -990,8 +994,8 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
-        getModuleOrder().forEach { module ->
-            if (!isModuleEnabled(module)) {
+        settings.getModuleOrder().forEach { module ->
+            if (!settings.isModuleEnabled(module)) {
                 return@forEach
             }
 
@@ -2269,7 +2273,7 @@ class MainActivity : AppCompatActivity() {
 
         // A global IPv6 address is unique to the home network, so it can
         // be hidden for screenshots and copied output.
-        val hideIpv6 = getHideIpv6()
+        val hideIpv6 = settings.getHideIpv6()
 
         if (ipv6 != null) {
             if (hideIpv6) {
@@ -2590,7 +2594,7 @@ class MainActivity : AppCompatActivity() {
         output: FastfetchResult,
         paint: TextPaint
     ): FastfetchResult {
-        val accentColor = getAccentColor()
+        val accentColor = settings.getAccentColor()
 
         val style =
             LineStyle(
@@ -2821,182 +2825,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ==================================================
-    // SETTINGS STORAGE
-    // ==================================================
-
-    private fun prefs() =
-        getSharedPreferences(
-            PREFS_NAME,
-            MODE_PRIVATE
-        )
-
-    private fun getUsername(): String {
-        return prefs()
-            .getString(
-                KEY_USERNAME,
-                DEFAULT_USERNAME
-            )
-            ?: DEFAULT_USERNAME
-    }
-
-    private fun getOutputMode(): String {
-        val saved =
-            prefs()
-                .getString(
-                    KEY_OUTPUT_MODE,
-                    MODE_COMPACT
-                )
-                ?: MODE_COMPACT
-
-        return if (saved in OUTPUT_MODES) {
-            saved
-        } else {
-            MODE_COMPACT
-        }
-    }
-
-    private fun getShowLogo(): Boolean {
-        return prefs()
-            .getBoolean(
-                KEY_SHOW_LOGO,
-                true
-            )
-    }
-
-    private fun getHideIpv6(): Boolean {
-        return prefs()
-            .getBoolean(
-                KEY_HIDE_IPV6,
-                false
-            )
-    }
-
-    private fun getAccentName(): String {
-        return prefs()
-            .getString(
-                KEY_ACCENT,
-                ACCENT_CYAN
-            )
-            ?: ACCENT_CYAN
-    }
-
-    private fun getOutputFontName(): String {
-        val saved =
-            prefs()
-                .getString(
-                    KEY_OUTPUT_FONT,
-                    OUTPUT_FONT_QUICKSAND
-                )
-                ?: OUTPUT_FONT_QUICKSAND
-
-        return if (saved in OUTPUT_FONT_VALUES) {
-            saved
-        } else {
-            OUTPUT_FONT_QUICKSAND
-        }
-    }
-
-    private fun getAccentColor(): Int {
-        return when (getAccentName()) {
-            ACCENT_GREEN ->
-                Color.rgb(61, 220, 132)
-
-            ACCENT_PURPLE ->
-                Color.rgb(190, 110, 255)
-
-            ACCENT_ORANGE ->
-                Color.rgb(255, 165, 60)
-
-            ACCENT_WHITE ->
-                Color.rgb(235, 235, 235)
-
-            else ->
-                Color.rgb(0, 210, 255)
-        }
-    }
-
-    private fun getRefreshIntervalMs(): Long {
-        return prefs()
-            .getLong(
-                KEY_REFRESH_INTERVAL,
-                DEFAULT_REFRESH_INTERVAL
-            )
-    }
-
-    private fun isModuleEnabled(
-        module: String
-    ): Boolean {
-        return prefs()
-            .getBoolean(
-                "$KEY_MODULE_PREFIX$module",
-                true
-            )
-    }
-
-    private fun getModuleOrder(): List<String> {
-        val raw =
-            prefs()
-                .getString(
-                    KEY_MODULE_ORDER,
-                    DEFAULT_MODULE_ORDER
-                )
-                ?: DEFAULT_MODULE_ORDER
-
-        return normalizeModuleOrder(raw)
-    }
-
-    private fun normalizeModuleOrder(
-        raw: String
-    ): List<String> {
-        val requested =
-            raw
-                .split(",")
-                .map {
-                    it.trim().lowercase(Locale.US)
-                }
-                .filter {
-                    it in VALID_MODULES
-                }
-                .distinct()
-                .toMutableList()
-
-        VALID_MODULES.forEach { module ->
-            if (module !in requested) {
-                requested.add(module)
-            }
-        }
-
-        return requested
-    }
-
-    private fun sanitizeUsername(
-        raw: String
-    ): String {
-        var username =
-            raw
-                .replace("\n", "")
-                .replace("\r", "")
-                .replace("@", "")
-                .trim()
-
-        if (
-            username.length >
-            MAX_USERNAME_LENGTH
-        ) {
-            username =
-                username.take(
-                    MAX_USERNAME_LENGTH
-                )
-        }
-
-        if (username.isBlank()) {
-            username = DEFAULT_USERNAME
-        }
-
-        return username
-    }
-
-    // ==================================================
     // SETTINGS DIALOG 2.0
     // ==================================================
 
@@ -3203,14 +3031,14 @@ class MainActivity : AppCompatActivity() {
         )
 
         usernameInput.setText(
-            getUsername()
+            settings.getUsername()
         )
 
         usernameInput.selectAll()
 
         presetSpinner.setSelection(
             OUTPUT_MODES.indexOf(
-                getOutputMode()
+                settings.getOutputMode()
             ).coerceAtLeast(0)
         )
 
@@ -3219,75 +3047,75 @@ class MainActivity : AppCompatActivity() {
 
         accentSpinner.setSelection(
             ACCENT_VALUES.indexOf(
-                getAccentName()
+                settings.getAccentName()
             ).coerceAtLeast(0)
         )
 
         fontSpinner.setSelection(
             OUTPUT_FONT_VALUES.indexOf(
-                getOutputFontName()
+                settings.getOutputFontName()
             ).coerceAtLeast(0)
         )
 
         refreshSpinner.setSelection(
             REFRESH_VALUES.indexOf(
-                getRefreshIntervalMs()
+                settings.getRefreshIntervalMs()
             ).coerceAtLeast(0)
         )
 
         showLogoSwitch.isChecked =
-            getShowLogo()
+            settings.getShowLogo()
 
         hideIpv6Switch.isChecked =
-            getHideIpv6()
+            settings.getHideIpv6()
 
         displaySwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_DISPLAY
             )
 
         hardwareSwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_HARDWARE
             )
 
         graphicsSwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_GRAPHICS
             )
 
         memorySwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_MEMORY
             )
 
         networkSwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_NETWORK
             )
 
         powerSwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_POWER
             )
 
         androidSwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_ANDROID
             )
 
         securitySwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_SECURITY
             )
 
         miscSwitch.isChecked =
-            isModuleEnabled(
+            settings.isModuleEnabled(
                 MODULE_MISC
             )
 
         orderInput.setText(
-            getModuleOrder()
+            settings.getModuleOrder()
                 .joinToString(", ")
         )
 
@@ -3455,7 +3283,7 @@ class MainActivity : AppCompatActivity() {
                     DEFAULT_MODULE_ORDER
             }
 
-            prefs()
+            settings
                 .edit()
                 .putString(
                     KEY_USERNAME,
@@ -3536,7 +3364,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         reset.setOnClickListener {
-            prefs()
+            settings
                 .edit()
                 .putString(
                     KEY_USERNAME,
@@ -3789,190 +3617,8 @@ class MainActivity : AppCompatActivity() {
         private const val ARRANGEMENT_SLACK_DP =
             16
 
-        private const val PREFS_NAME =
-            "fastfetch_settings"
-
-        private const val KEY_USERNAME =
-            "username"
-
-        private const val KEY_OUTPUT_MODE =
-            "output_mode"
-
-        private const val KEY_SHOW_LOGO =
-            "show_logo"
-
-        private const val KEY_HIDE_IPV6 =
-            "hide_ipv6"
-
-        private const val KEY_ACCENT =
-            "accent"
-
-        private const val KEY_OUTPUT_FONT =
-            "output_font"
-
-        private const val KEY_REFRESH_INTERVAL =
-            "refresh_interval"
-
-        private const val KEY_MODULE_ORDER =
-            "module_order"
-
-        private const val KEY_MODULE_PREFIX =
-            "module_"
-
-        private const val KEY_SETUP_COMPLETE =
-            "username_setup_complete"
-
-        private const val DEFAULT_USERNAME =
-            "android"
-
-        private const val MAX_USERNAME_LENGTH =
-            24
-
-        private const val DEFAULT_REFRESH_INTERVAL =
-            2_000L
-
         private const val THERMAL_HEADROOM_INTERVAL =
             10_000L
-
-        private const val MODE_MINIMAL =
-            "minimal"
-
-        private const val MODE_COMPACT =
-            "compact"
-
-        private const val MODE_DETAILED =
-            "detailed"
-
-        private const val MODE_WATCH =
-            "watch"
-
-        private const val MODULE_DISPLAY =
-            "display"
-
-        private const val MODULE_HARDWARE =
-            "hardware"
-
-        private const val MODULE_GRAPHICS =
-            "graphics"
-
-        private const val MODULE_MEMORY =
-            "memory"
-
-        private const val MODULE_NETWORK =
-            "network"
-
-        private const val MODULE_POWER =
-            "power"
-
-        private const val MODULE_ANDROID =
-            "android"
-
-        private const val MODULE_SECURITY =
-            "security"
-
-        private const val MODULE_MISC =
-            "misc"
-
-        private const val DEFAULT_MODULE_ORDER =
-            "display,hardware,graphics,memory,network,power,android,security,misc"
-
-        private val VALID_MODULES =
-            listOf(
-                MODULE_DISPLAY,
-                MODULE_HARDWARE,
-                MODULE_GRAPHICS,
-                MODULE_MEMORY,
-                MODULE_NETWORK,
-                MODULE_POWER,
-                MODULE_ANDROID,
-                MODULE_SECURITY,
-                MODULE_MISC
-            )
-
-        private val OUTPUT_MODES =
-            listOf(
-                MODE_MINIMAL,
-                MODE_COMPACT,
-                MODE_DETAILED,
-                MODE_WATCH
-            )
-
-        private val PRESET_LABELS =
-            listOf(
-                "Minimal",
-                "Compact",
-                "Detailed",
-                "Watch Preview"
-            )
-
-        private const val ACCENT_CYAN =
-            "cyan"
-
-        private const val ACCENT_GREEN =
-            "green"
-
-        private const val ACCENT_PURPLE =
-            "purple"
-
-        private const val ACCENT_ORANGE =
-            "orange"
-
-        private const val ACCENT_WHITE =
-            "white"
-
-        private val ACCENT_VALUES =
-            listOf(
-                ACCENT_CYAN,
-                ACCENT_GREEN,
-                ACCENT_PURPLE,
-                ACCENT_ORANGE,
-                ACCENT_WHITE
-            )
-
-        private val ACCENT_LABELS =
-            listOf(
-                "Cyan",
-                "Green",
-                "Purple",
-                "Orange",
-                "White"
-            )
-
-        private const val OUTPUT_FONT_QUICKSAND =
-            "quicksand"
-
-        private const val OUTPUT_FONT_ROBOTO =
-            "roboto_mono"
-
-        private val OUTPUT_FONT_VALUES =
-            listOf(
-                OUTPUT_FONT_QUICKSAND,
-                OUTPUT_FONT_ROBOTO
-            )
-
-        private val OUTPUT_FONT_LABELS =
-            listOf(
-                "Quicksand",
-                "Roboto Mono"
-            )
-
-        private val REFRESH_VALUES =
-            listOf(
-                0L,
-                1_000L,
-                2_000L,
-                5_000L,
-                10_000L
-            )
-
-        private val REFRESH_LABELS =
-            listOf(
-                "Off",
-                "1 second",
-                "2 seconds",
-                "5 seconds",
-                "10 seconds"
-            )
 
         init {
             System.loadLibrary(
