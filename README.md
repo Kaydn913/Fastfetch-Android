@@ -6,7 +6,7 @@
 
 <p align="center">
   <img alt="Android 7.1+" src="https://img.shields.io/badge/Android-7.1%2B-3DDC84?logo=android&logoColor=white">
-  <img alt="Version 1.1" src="https://img.shields.io/badge/version-1.1-blue">
+  <img alt="Version 1.2" src="https://img.shields.io/badge/version-1.2-blue">
   <img alt="Supported ABIs" src="https://img.shields.io/badge/ABIs-arm64%20%7C%20arm32%20%7C%20x86%20%7C%20x86__64-informational">
   <img alt="Kotlin and C++" src="https://img.shields.io/badge/Kotlin%20%2B%20C%2B%2B-native-7F52FF?logo=kotlin&logoColor=white">
 </p>
@@ -17,6 +17,12 @@ It currently supports **Android 7.1 (API 25) and above** on `arm64-v8a`, `armeab
 
 > [!NOTE]
 > **This project is vibe coded.** Most of the code was written with AI assistance (originally ChatGPT, now Claude), while I direct the work, test it on real devices, and check the results. Expect some rough edges, and please open an issue if something looks wrong.
+
+## What's new in 1.2
+
+- **Fits tablets in portrait.** Android 16+ ignores the app's landscape lock on large screens, so tablets run it in portrait, and in 1.1 long lines got cut off. The layout now adapts to the space it has: it stays the same when everything fits (TVs, phones in landscape), uses a slimmer right margin when it doesn't, and puts the logo above the info in narrow windows like split screen.
+- **Smoother updates.** Only the lines that changed are redrawn, and information that never changes is read once instead of on every refresh. On the onn Full HD Google TV stick, the slowest device I test on, a refresh now takes a median of under 8 ms to draw instead of 17 ms, and the background refresh uses about a third of the CPU it used to.
+- Under the hood, the code was reorganized into smaller files. That doesn't change how the app looks or works.
 
 ## Features
 
@@ -222,8 +228,7 @@ More screenshots are available in the **[full screenshot gallery](SCREENSHOTS.md
 - Virtual Master-specific emulator detection is not implemented yet.
 - Native Android-on-PC installations and ChromeOS ARCVM can currently be classified as tablets.
 - Some security or system information may be restricted by Android or the device manufacturer and may appear as unavailable or unknown.
-- On Android 16+ tablets and other large screens, Android ignores the app's landscape lock, so it runs in portrait. Long lines then run past the right edge and need sideways scrolling.
-- On very slow devices (like the onn Full HD Google TV stick), each info update can still take about one frame to draw. It isn't noticeable on a static screen, but it isn't perfectly smooth yet.
+- On very slow devices (like the onn Full HD Google TV stick), an info update still occasionally takes longer than one frame to draw, about once a minute in testing. It isn't noticeable on a static screen.
 - More Android form factors and emulator environments can be added as they are tested.
 
 ## Bug Reports
