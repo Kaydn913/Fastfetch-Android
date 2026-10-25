@@ -71,7 +71,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 ## Tested Devices
 
 <details open>
-<summary><strong>Phones</strong> (21)</summary>
+<summary><strong>Phones</strong> (22)</summary>
 
 ### BLU
 
