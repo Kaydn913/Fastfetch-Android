@@ -71,7 +71,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 ## Tested Devices
 
 <details open>
-<summary><strong>Phones</strong> (22)</summary>
+<summary><strong>Phones</strong> (24)</summary>
 
 ### BLU
 
@@ -91,6 +91,8 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 
 - **Moto G**
   - Moto G Stylus (2025)
+- **Moto G Play**
+  - Moto G Play (2026)
 - **Moto Z**
   - Moto Z4
 
@@ -107,6 +109,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 - **Galaxy S series**
   - Galaxy S9 (`SM-G960U`)
   - Galaxy S21 (`SM-G991U1`)
+  - Galaxy S22 (`SM-S901U`)
   - Galaxy S22+ (`SM-S906U1`)
 - **Galaxy A series**
   - Galaxy A20e (`SM-A202F`)
