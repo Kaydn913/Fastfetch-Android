@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.hardware.Sensor
 import android.hardware.SensorManager
-import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
@@ -276,7 +275,7 @@ class DeviceInfo(
                 .lowercase(Locale.US)
 
         val primaryAbi =
-            Build.SUPPORTED_ABIS
+            Compat.supportedAbis()
                 .firstOrNull()
                 ?.lowercase(Locale.US)
                 ?: ""
@@ -452,10 +451,15 @@ class DeviceInfo(
     }
 
     fun getProcessBitness(): String {
-        return if (android.os.Process.is64Bit()) {
-            "64-bit"
-        } else {
-            "32-bit"
+        val is64Bit =
+            Compat.is64BitProcess {
+                getParsedStaticNativeLines()["Process Bits.value"]
+            }
+
+        return when (is64Bit) {
+            true -> "64-bit"
+            false -> "32-bit"
+            null -> "Unknown"
         }
     }
 
@@ -567,9 +571,7 @@ class DeviceInfo(
      */
     private fun hasCamera(): Boolean {
         return try {
-            activity.getSystemService(CameraManager::class.java)
-                .cameraIdList
-                .isNotEmpty()
+            Compat.cameraCount(activity) > 0
         } catch (_: Exception) {
             // Camera service unavailable: fall back to built-in cameras
             // only, never "external camera supported".

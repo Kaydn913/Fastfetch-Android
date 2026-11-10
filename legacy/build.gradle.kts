@@ -174,6 +174,12 @@ android {
     }
 
     lint {
+        // The shared code reaches this module as generated sources (the
+        // mirror above), and lint skips generated sources by default. It
+        // has to check them: catching API calls that are too new for
+        // Android 4.1 in the shared code is the point of linting here.
+        checkGeneratedSources = true
+
         // This app targets Android 7.0 on purpose and isn't on Google Play,
         // so Play's target-SDK deadline doesn't apply.
         disable += "ExpiredTargetSdkVersion"

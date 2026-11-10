@@ -273,7 +273,7 @@ class MainActivity : AppCompatActivity() {
 
         refreshInFlight = false
 
-        if (isFinishing || isDestroyed) {
+        if (isFinishing || Compat.isDestroyed(this)) {
             return
         }
 
@@ -561,7 +561,7 @@ class MainActivity : AppCompatActivity() {
             binding.outputGap
                 ?: return
 
-        wideEndPaddingPx = scroll.paddingEnd
+        wideEndPaddingPx = Compat.paddingEnd(scroll)
         gapWidthPx = gap.layoutParams.width
         gapHeightPx = gap.layoutParams.height
 
@@ -587,7 +587,7 @@ class MainActivity : AppCompatActivity() {
 
         val arrangement =
             OutputLayout.choose(
-                availableWidth = scroll.width - scroll.paddingStart,
+                availableWidth = scroll.width - Compat.paddingStart(scroll),
                 logoWidth = if (logoVisible) getLogoWidthPx() else 0,
                 gap = gapWidthPx,
                 textWidth = outputTextWidthPx,
@@ -634,17 +634,18 @@ class MainActivity : AppCompatActivity() {
                 // The text starts below the logo, well under the settings
                 // button, so it can use the same margin as the left side.
                 OutputLayout.Arrangement.STACKED ->
-                    scroll.paddingStart
+                    Compat.paddingStart(scroll)
             }
 
         // Each of these only triggers a relayout when something really
         // changes.
-        if (scroll.paddingEnd != endPadding) {
-            scroll.setPaddingRelative(
-                scroll.paddingStart,
-                scroll.paddingTop,
-                endPadding,
-                scroll.paddingBottom
+        if (Compat.paddingEnd(scroll) != endPadding) {
+            Compat.setPaddingRelative(
+                view = scroll,
+                start = Compat.paddingStart(scroll),
+                top = scroll.paddingTop,
+                end = endPadding,
+                bottom = scroll.paddingBottom
             )
         }
 
@@ -705,8 +706,8 @@ class MainActivity : AppCompatActivity() {
 
         val clipboard =
             getSystemService(
-                ClipboardManager::class.java
-            )
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
 
         clipboard.setPrimaryClip(
             ClipData.newPlainText(
