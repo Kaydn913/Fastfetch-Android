@@ -119,6 +119,22 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // The legacy edition refuses Android newer than 7.0 (see Edition).
+        // Its launcher screen already checks, but a task reopened from
+        // recents after an OS upgrade starts here directly. So check again,
+        // before the native library loads, and hand over to the launcher
+        // screen, which shows why. Never refuses in :app.
+        if (!Edition.supportsThisAndroid()) {
+            packageManager.getLaunchIntentForPackage(packageName)?.let {
+                startActivity(it)
+            }
+
+            finish()
+            return
+        }
+
+        loadNativeLibrary()
+
         supportActionBar?.hide()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -791,7 +807,10 @@ class MainActivity : AppCompatActivity() {
         private const val ARRANGEMENT_SLACK_DP =
             16
 
-        init {
+        // Called from onCreate after the edition check, not when the class
+        // loads, so a refused legacy launch never loads native code.
+        // Loading it again (activity recreated) does nothing.
+        private fun loadNativeLibrary() {
             System.loadLibrary(
                 "fastfetchandroid"
             )

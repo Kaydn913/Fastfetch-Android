@@ -5,8 +5,9 @@ import javax.inject.Inject
 //
 // There is only one copy of the code. The Kotlin sources and resources come
 // from app/src/main, and CMake builds the same native-lib.cpp. This module
-// only holds what differs: the app ID, SDK levels, NDK, manifest, and the
-// PNG launcher icon.
+// only holds what differs: the app ID, SDK levels, NDK, manifest, the
+// launcher screen that checks the Android version (LegacyGateActivity),
+// and the PNG launcher icon.
 // ============================================================================
 
 plugins {
@@ -89,8 +90,27 @@ android {
         applicationId = "com.kaydn.fastfetchandroid.legacy"
         minSdk = 16
         targetSdk = 24
+
+        // Android ignores maxSdkVersion when an APK is sideloaded, so this
+        // only filters app stores. The real limit is MAX_ANDROID_SDK below.
+        maxSdk = 24
+
         versionCode = 1
         versionName = "1.0"
+
+        // Read by the shared Edition check: refuse anything newer than
+        // Android 7.0 (API 24). Only the bench build bypasses it.
+        buildConfigField(
+            "int",
+            "MAX_ANDROID_SDK",
+            "24"
+        )
+
+        buildConfigField(
+            "boolean",
+            "OS_GATE_BYPASS",
+            "false"
+        )
 
         ndk {
             abiFilters += listOf(
@@ -117,11 +137,19 @@ android {
 
         // Same idea as :app's bench build: release settings, debug key, its
         // own package name, so it sits next to the real app on a test device.
+        // It also skips the Android version check, so the whole app can be
+        // tested on a newer device. Never published.
         create("bench") {
             initWith(getByName("release"))
             applicationIdSuffix = ".bench"
             versionNameSuffix = "-bench"
             signingConfig = signingConfigs.getByName("debug")
+
+            buildConfigField(
+                "boolean",
+                "OS_GATE_BYPASS",
+                "true"
+            )
         }
     }
 
@@ -142,6 +170,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     lint {

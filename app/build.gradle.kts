@@ -18,6 +18,20 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // Read by the shared Edition check. The normal app has no upper
+        // Android limit (the legacy module sets 24 = Android 7.0).
+        buildConfigField(
+            "int",
+            "MAX_ANDROID_SDK",
+            "Integer.MAX_VALUE"
+        )
+
+        buildConfigField(
+            "boolean",
+            "OS_GATE_BYPASS",
+            "false"
+        )
+
         ndk {
             abiFilters += listOf(
                 "arm64-v8a",
@@ -70,6 +84,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
