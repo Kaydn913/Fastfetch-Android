@@ -13,6 +13,10 @@
 #include <sys/system_properties.h>
 #include <cstdio>
 
+#if __ANDROID_API__ < 24
+#include <dlfcn.h>
+#endif
+
 
 static std::string formatUptime(long seconds) {
     long days = seconds / 86400;
@@ -284,6 +288,9 @@ static std::string getGpuInfo() {
     return result.str();
 }
 
+#if __ANDROID_API__ >= 24
+
+// The normal app: libvulkan.so is linked directly.
 static std::string getVulkanInfo() {
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -346,6 +353,120 @@ static std::string getVulkanInfo() {
 
     return result.str();
 }
+
+#else
+
+// The legacy edition (built for Android older than 7.0). libvulkan.so only
+// exists from Android 7.0, so it can't be linked. Open it at runtime
+// instead: a 7.0 device still shows its Vulkan version, and older Android
+// (no libvulkan.so) just leaves the line out. Same steps as above, through
+// function pointers. The library is never closed: this runs once per
+// process, and unloading a Vulkan driver isn't safe on every device.
+static std::string getVulkanInfo() {
+    void* library = dlopen(
+            "libvulkan.so",
+            RTLD_NOW | RTLD_LOCAL
+    );
+
+    if (library == nullptr) {
+        return "";
+    }
+
+    auto createInstance =
+            reinterpret_cast<PFN_vkCreateInstance>(
+                    dlsym(library, "vkCreateInstance")
+            );
+
+    auto enumeratePhysicalDevices =
+            reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(
+                    dlsym(library, "vkEnumeratePhysicalDevices")
+            );
+
+    auto getPhysicalDeviceProperties =
+            reinterpret_cast<PFN_vkGetPhysicalDeviceProperties>(
+                    dlsym(library, "vkGetPhysicalDeviceProperties")
+            );
+
+    auto destroyInstance =
+            reinterpret_cast<PFN_vkDestroyInstance>(
+                    dlsym(library, "vkDestroyInstance")
+            );
+
+    if (
+            createInstance == nullptr ||
+            enumeratePhysicalDevices == nullptr ||
+            getPhysicalDeviceProperties == nullptr ||
+            destroyInstance == nullptr
+            ) {
+        return "";
+    }
+
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "Fastfetch Android";
+    appInfo.apiVersion = VK_API_VERSION_1_0;
+
+    VkInstanceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &appInfo;
+
+    VkInstance instance = VK_NULL_HANDLE;
+
+    if (createInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
+        return "";
+    }
+
+    uint32_t deviceCount = 0;
+
+    if (
+            enumeratePhysicalDevices(
+                    instance,
+                    &deviceCount,
+                    nullptr
+            ) != VK_SUCCESS ||
+            deviceCount == 0
+            ) {
+        destroyInstance(instance, nullptr);
+        return "";
+    }
+
+    VkPhysicalDevice device = VK_NULL_HANDLE;
+    uint32_t oneDevice = 1;
+
+    enumeratePhysicalDevices(
+            instance,
+            &oneDevice,
+            &device
+    );
+
+    VkPhysicalDeviceProperties properties{};
+    getPhysicalDeviceProperties(
+            device,
+            &properties
+    );
+
+    uint32_t version = properties.apiVersion;
+
+    std::ostringstream result;
+
+    // NDK r23c's Vulkan headers predate VK_API_VERSION_*. VK_VERSION_*
+    // reads the same, since the "variant" bits it doesn't mask are always
+    // 0 for Vulkan on Android.
+    result
+            << "Vulkan: "
+            << VK_VERSION_MAJOR(version)
+            << "."
+            << VK_VERSION_MINOR(version)
+            << "."
+            << VK_VERSION_PATCH(version)
+            << "\n";
+
+    destroyInstance(instance, nullptr);
+
+    return result.str();
+}
+
+#endif
 
 // Reads the same file getenforce reads, without forking a process.
 // A forked getenforce runs in the app's SELinux domain anyway, so
@@ -477,6 +598,13 @@ Java_com_kaydn_fastfetchandroid_MainActivity_staticInfoFromJNI(
     } else {
         output << "Kernel: Unable to detect\n";
     }
+
+    // Whether this app process is 32- or 64-bit. Kotlin only asks for it
+    // where Process.is64Bit() doesn't exist yet (below Android 6.0).
+    output
+            << "Process Bits: "
+            << (sizeof(void*) * 8)
+            << "\n";
 
     std::string gpuInfo = getGpuInfo();
 
