@@ -6,7 +6,7 @@
 
 <p align="center">
   <img alt="Android 7.1+" src="https://img.shields.io/badge/Android-7.1%2B-3DDC84?logo=android&logoColor=white">
-  <img alt="Version 1.2" src="https://img.shields.io/badge/version-1.2-blue">
+  <img alt="Version 1.2.1" src="https://img.shields.io/badge/version-1.2.1-blue">
   <img alt="Supported ABIs" src="https://img.shields.io/badge/ABIs-arm64%20%7C%20arm32%20%7C%20x86%20%7C%20x86__64-informational">
   <img alt="Kotlin and C++" src="https://img.shields.io/badge/Kotlin%20%2B%20C%2B%2B-native-7F52FF?logo=kotlin&logoColor=white">
 </p>
@@ -17,6 +17,11 @@ It currently supports **Android 7.1 (API 25) and above** on `arm64-v8a`, `armeab
 
 > [!NOTE]
 > **This project is vibe coded.** Most of the code was written with AI assistance (originally ChatGPT, now Claude), while I direct the work, test it on real devices, and check the results. Expect some rough edges, and please open an issue if something looks wrong.
+
+## What's new in 1.2.1
+
+- **Fixed a crash on round watches.** On round screens, opening settings crashed the app, and that included the setup screen on the very first launch.
+- **Watches stay upright.** The app no longer asks watches for landscape, which could turn the whole screen sideways.
 
 ## What's new in 1.2
 
@@ -178,8 +183,11 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 </details>
 
 <details>
-<summary><strong>Emulators</strong> (3)</summary>
+<summary><strong>Emulators</strong> (4)</summary>
 
+- Android Emulator (Android Studio)
+  - Android Wear 7.1.1 (x86, round)
+  - Wear OS 4 / Android 13 (x86_64, round)
 - BlueStacks
 - LDPlayer
 - Virtual Master

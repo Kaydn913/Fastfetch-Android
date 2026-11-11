@@ -119,6 +119,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Landscape everywhere except on watches (see WatchScreen).
+        WatchScreen.keepUpright(this)
+
         supportActionBar?.hide()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
