@@ -5,7 +5,9 @@
     android:background="#242424"
     android:gravity="center_vertical"
     android:fontFamily="@font/quicksand_regular"
+    android:paddingLeft="16dp"
     android:paddingStart="16dp"
+    android:paddingRight="16dp"
     android:paddingEnd="16dp"
     android:textColor="#FFFFFF"
     android:textSize="14sp" />

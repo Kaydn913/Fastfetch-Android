@@ -180,6 +180,11 @@ android {
         // Android 4.1 in the shared code is the point of linting here.
         checkGeneratedSources = true
 
+        // Fatal, so a release or bench build fails (lint's release check
+        // runs on every one) as soon as shared code calls an API that's too
+        // new for Android 4.1 without a version check (see Compat.kt).
+        fatal += "NewApi"
+
         // This app targets Android 7.0 on purpose and isn't on Google Play,
         // so Play's target-SDK deadline doesn't apply.
         disable += "ExpiredTargetSdkVersion"

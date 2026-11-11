@@ -105,10 +105,20 @@ class OutputBuilder(
         val verifiedBoot = nativeLine("Verified Boot")
         val root = nativeLine("Root")
 
+        // On Android 7.1+ (everything the normal app runs on) apps can't
+        // read SELinux, so "Unknown" means restricted. Older Android may
+        // simply not have SELinux (4.1-4.2), so don't claim a reason there.
+        val unknownSelinux =
+            if (Build.VERSION.SDK_INT >= 25) {
+                "SELinux: Unknown [Restricted]"
+            } else {
+                "SELinux: Unknown"
+            }
+
         val selinux =
             when (val rawSelinux = nativeLine("SELinux")) {
                 null,
-                "SELinux: Unknown" -> "SELinux: Unknown [Restricted]"
+                "SELinux: Unknown" -> unknownSelinux
                 else -> rawSelinux
             }
 

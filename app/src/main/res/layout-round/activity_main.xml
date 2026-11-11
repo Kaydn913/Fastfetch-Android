@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
@@ -10,8 +11,10 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:fillViewport="true"
+        android:paddingLeft="28dp"
         android:paddingStart="28dp"
         android:paddingTop="24dp"
+        android:paddingRight="28dp"
         android:paddingEnd="28dp"
         android:paddingBottom="28dp">
 
@@ -26,6 +29,7 @@
                 android:layout_height="38dp"
                 android:layout_gravity="end"
                 android:backgroundTint="#202020"
+                tools:targetApi="21"
                 android:minWidth="0dp"
                 android:padding="0dp"
                 android:text="⚙"
