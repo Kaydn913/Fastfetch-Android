@@ -121,8 +121,11 @@ For Android 7.1 (API 25) and newer.
 </details>
 
 <details>
-<summary><strong>Emulators</strong> (3)</summary>
+<summary><strong>Emulators</strong> (4)</summary>
 
+- Android Emulator (Android Studio)
+  - Android Wear 7.1.1 (x86, round)
+  - Wear OS 4 / Android 13 (x86_64, round)
 - BlueStacks
 - LDPlayer
 - Virtual Master
@@ -171,6 +174,7 @@ For Android 4.1 to 7.0 (API 16 to 24). It's still in development and hasn't been
 - Android Emulator (Android Studio)
   - Android 4.1.2 (x86)
   - Android TV 5.1.1 (x86)
+  - Android 7.0 (x86_64)
 
 </details>
 

@@ -119,6 +119,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Landscape everywhere except on watches (see WatchScreen).
+        WatchScreen.keepUpright(this)
+
         // The legacy edition refuses Android newer than 7.0 (see Edition).
         // Its launcher screen already checks, but a task reopened from
         // recents after an OS upgrade starts here directly. So check again,

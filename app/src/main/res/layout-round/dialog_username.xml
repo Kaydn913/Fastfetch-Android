@@ -82,6 +82,16 @@
             android:textColor="#FFFFFF"
             android:textSize="10sp" />
 
+        <Switch
+            android:fontFamily="@font/quicksand_regular"
+            android:id="@+id/hide_ipv6_switch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:text="Hide IPv6"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp" />
+
         <TextView
             android:fontFamily="@font/quicksand_regular"
             android:layout_width="match_parent"

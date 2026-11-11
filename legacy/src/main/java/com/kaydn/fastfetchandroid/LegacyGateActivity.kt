@@ -3,7 +3,6 @@ package com.kaydn.fastfetchandroid
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -38,6 +37,9 @@ class LegacyGateActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Landscape everywhere except on watches (see WatchScreen).
+        WatchScreen.keepUpright(this)
+
         if (Edition.supportsThisAndroid()) {
             startActivity(
                 Intent(
@@ -66,7 +68,7 @@ class LegacyGateActivity : AppCompatActivity() {
         // Watches and other tiny screens get smaller, centered text. Round
         // watches also need room at the edges, where the screen's corners
         // are cut off. Watches have no browser, so they get no button.
-        val isWatch = isWatch()
+        val isWatch = WatchScreen.isWatch(this)
         val isRound = isRoundScreen()
         val isSmall =
             isWatch || resources.configuration.smallestScreenWidthDp < SMALL_SCREEN_DP
@@ -233,15 +235,6 @@ class LegacyGateActivity : AppCompatActivity() {
         )
 
         return true
-    }
-
-    // UI_MODE_TYPE_WATCH is API 20, but it's a constant compiled into the
-    // app, so older Android just never matches it.
-    @SuppressLint("InlinedApi")
-    private fun isWatch(): Boolean {
-        val type = resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
-
-        return type == Configuration.UI_MODE_TYPE_WATCH
     }
 
     private fun isRoundScreen(): Boolean {
