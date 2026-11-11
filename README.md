@@ -187,6 +187,7 @@ To build it yourself, clone the repository, open it in Android Studio, and build
 
 - Android Emulator (Android Studio)
   - Android Wear 7.1.1 (x86, round)
+  - Wear OS 4 / Android 13 (x86_64, round)
 - BlueStacks
 - LDPlayer
 - Virtual Master
