@@ -5,7 +5,7 @@ Fastfetch Android comes in two editions. Each has its own list here.
 | Edition | Android versions |
 | --- | --- |
 | [Fastfetch Android](#fastfetch-android) | Android 7.1 and newer |
-| [Fastfetch Android Legacy](#fastfetch-android-legacy) | Android 4.1 to 7.0 (in development) |
+| [Fastfetch Android Legacy](#fastfetch-android-legacy) | Android 4.1 to 7.0 |
 
 Tested it on something that isn't listed? Let me know through the [Issues page](https://github.com/Kaydn913/Fastfetch-Android/issues) and I can add it.
 
@@ -166,7 +166,7 @@ These devices and platforms may also work, but have not been tested yet:
 
 ## Fastfetch Android Legacy
 
-For Android 4.1 to 7.0 (API 16 to 24). It's still in development and hasn't been released yet, so this list is short.
+For Android 4.1 to 7.0 (API 16 to 24). It's new, so this list is still short.
 
 <details open>
 <summary><strong>Emulators</strong> (1)</summary>

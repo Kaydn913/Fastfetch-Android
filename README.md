@@ -13,7 +13,7 @@
 
 Fastfetch Android brings detailed, Fastfetch-style device information to Android with a native app that works across phones, tablets, watches, TVs, VR headsets, emulators, and Android-on-PC setups.
 
-It currently supports **Android 7.1 (API 25) and above** on `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
+It currently supports **Android 7.1 (API 25) and above** on `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`. For older devices, there's a separate [Legacy edition](#fastfetch-android-legacy) for **Android 4.1 to 7.0**.
 
 > [!NOTE]
 > **This project is vibe coded.** Most of the code was written with AI assistance (originally ChatGPT, now Claude), while I direct the work, test it on real devices, and check the results. Expect some rough edges, and please open an issue if something looks wrong.
@@ -58,6 +58,17 @@ To build it yourself, clone the repository, open it in Android Studio, and build
   - `armeabi-v7a`
   - `x86`
   - `x86_64`
+
+### Fastfetch Android Legacy
+
+For devices running **Android 4.1 to 7.0 (API 16 to 24)**, use **Fastfetch Android Legacy** instead. It's the same app, built from the same code, with fallbacks for older Android:
+
+- Download `Fastfetch-Android-Legacy-v1.0.apk` from its [GitHub release](https://github.com/Kaydn913/Fastfetch-Android/releases/tag/legacy-v1.0).
+- It installs as a separate app, next to the normal one.
+- On Android 7.1 and newer it only shows a screen pointing to the normal app.
+- Same ABIs as the normal app. Some details aren't available on old Android, like the security patch level below 6.0 and the DNS servers below 5.0.
+
+To build it yourself, build the `legacy` module.
 
 ## Supported Platforms
 
