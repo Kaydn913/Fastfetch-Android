@@ -166,7 +166,7 @@ class OutputRenderer(
                 typeface = paint.typeface,
                 textSize = paint.textSize,
                 textScaleX = paint.textScaleX,
-                letterSpacing = paint.letterSpacing
+                letterSpacing = Compat.letterSpacing(paint)
             )
 
         if (style != lineCacheStyle) {

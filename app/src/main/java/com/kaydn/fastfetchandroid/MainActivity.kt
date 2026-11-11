@@ -122,12 +122,31 @@ class MainActivity : AppCompatActivity() {
         // Landscape everywhere except on watches (see WatchScreen).
         WatchScreen.keepUpright(this)
 
+        // The legacy edition refuses Android newer than 7.0 (see Edition).
+        // Its launcher screen already checks, but a task reopened from
+        // recents after an OS upgrade starts here directly. So check again,
+        // before the native library loads, and hand over to the launcher
+        // screen, which shows why. Never refuses in :app.
+        if (!Edition.supportsThisAndroid()) {
+            packageManager.getLaunchIntentForPackage(packageName)?.let {
+                startActivity(it)
+            }
+
+            finish()
+            return
+        }
+
+        loadNativeLibrary()
+
         supportActionBar?.hide()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         applyMainUiFont()
+
+        // Old Android has no gear character (see GearIcon).
+        GearIcon.applyIfNeeded(binding.settingsButton)
 
         binding.logoText.text = outputRenderer.buildAndroidLogo()
 
@@ -260,7 +279,7 @@ class MainActivity : AppCompatActivity() {
 
         refreshInFlight = false
 
-        if (isFinishing || isDestroyed) {
+        if (isFinishing || Compat.isDestroyed(this)) {
             return
         }
 
@@ -548,7 +567,7 @@ class MainActivity : AppCompatActivity() {
             binding.outputGap
                 ?: return
 
-        wideEndPaddingPx = scroll.paddingEnd
+        wideEndPaddingPx = Compat.paddingEnd(scroll)
         gapWidthPx = gap.layoutParams.width
         gapHeightPx = gap.layoutParams.height
 
@@ -574,7 +593,7 @@ class MainActivity : AppCompatActivity() {
 
         val arrangement =
             OutputLayout.choose(
-                availableWidth = scroll.width - scroll.paddingStart,
+                availableWidth = scroll.width - Compat.paddingStart(scroll),
                 logoWidth = if (logoVisible) getLogoWidthPx() else 0,
                 gap = gapWidthPx,
                 textWidth = outputTextWidthPx,
@@ -621,17 +640,18 @@ class MainActivity : AppCompatActivity() {
                 // The text starts below the logo, well under the settings
                 // button, so it can use the same margin as the left side.
                 OutputLayout.Arrangement.STACKED ->
-                    scroll.paddingStart
+                    Compat.paddingStart(scroll)
             }
 
         // Each of these only triggers a relayout when something really
         // changes.
-        if (scroll.paddingEnd != endPadding) {
-            scroll.setPaddingRelative(
-                scroll.paddingStart,
-                scroll.paddingTop,
-                endPadding,
-                scroll.paddingBottom
+        if (Compat.paddingEnd(scroll) != endPadding) {
+            Compat.setPaddingRelative(
+                view = scroll,
+                start = Compat.paddingStart(scroll),
+                top = scroll.paddingTop,
+                end = endPadding,
+                bottom = scroll.paddingBottom
             )
         }
 
@@ -692,8 +712,8 @@ class MainActivity : AppCompatActivity() {
 
         val clipboard =
             getSystemService(
-                ClipboardManager::class.java
-            )
+                CLIPBOARD_SERVICE
+            ) as ClipboardManager
 
         clipboard.setPrimaryClip(
             ClipData.newPlainText(
@@ -794,7 +814,10 @@ class MainActivity : AppCompatActivity() {
         private const val ARRANGEMENT_SLACK_DP =
             16
 
-        init {
+        // Called from onCreate after the edition check, not when the class
+        // loads, so a refused legacy launch never loads native code.
+        // Loading it again (activity recreated) does nothing.
+        private fun loadNativeLibrary() {
             System.loadLibrary(
                 "fastfetchandroid"
             )

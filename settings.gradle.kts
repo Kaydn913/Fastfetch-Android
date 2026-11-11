@@ -24,3 +24,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "Fastfetch Android"
 include(":app")
+
+// Fastfetch Android Legacy (Android 4.1-7.0). Shares :app's code.
+include(":legacy")

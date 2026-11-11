@@ -1,5 +1,6 @@
 package com.kaydn.fastfetchandroid
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
@@ -15,6 +16,9 @@ import android.content.res.Configuration
 
 internal object WatchScreen {
 
+    // UI_MODE_TYPE_WATCH is API 20, but it's a constant compiled into the
+    // app, so Android older than that (legacy edition) just never matches.
+    @SuppressLint("InlinedApi")
     fun isWatch(context: Context): Boolean {
         val type =
             context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK

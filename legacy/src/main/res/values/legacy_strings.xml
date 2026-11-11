@@ -1,0 +1,9 @@
+<resources>
+    <string name="legacy_app_name">Fastfetch Android Legacy</string>
+
+    <!-- The launcher screen on Android 7.1 and newer (LegacyGateActivity).
+         %1$s = Android version (e.g. 14), %2$d = API level (e.g. 34). -->
+    <string name="legacy_gate_message">Fastfetch Android Legacy is made for Android 4.1 to 7.0.\n\nThis device runs Android %1$s (API %2$d), so get the normal Fastfetch Android instead. It\'s free on GitHub:</string>
+    <string name="legacy_gate_button">Open GitHub</string>
+    <string name="legacy_gate_no_browser">No browser found. The link is on the screen.</string>
+</resources>

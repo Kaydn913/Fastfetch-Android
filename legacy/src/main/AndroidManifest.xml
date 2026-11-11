@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Fastfetch Android Legacy (Android 4.1-7.0).
+
+    The code and resources are shared with :app. Only what differs lives
+    here: the name, a PNG launcher icon (the shared WebP icons can't be
+    decoded on Android 4.1-4.2), and the launcher screen that checks the
+    Android version.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- The app never connects anywhere. On Android 4.x, reading the
+         network interfaces (IP addresses) and the 5.1 VPN check need a
+         socket, and only apps with INTERNET may create one. It's granted
+         at install, with no prompt. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature
+        android:name="android.hardware.type.watch"
+        android:required="false" />
+    <application
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher_legacy"
+        android:label="@string/legacy_app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.FastfetchAndroid">
+        <!-- The launcher: checks the Android version first, then opens
+             MainActivity (or explains why not, on Android 7.1+). -->
+        <activity
+            android:name=".LegacyGateActivity"
+            android:exported="true"
+            android:screenOrientation="sensorLandscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Only opened by the gate, so other apps can't skip the check. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape" />
+    </application>
+
+</manifest>

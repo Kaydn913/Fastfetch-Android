@@ -4,7 +4,6 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
-import android.os.StatFs
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -15,11 +14,11 @@ import kotlin.math.roundToInt
 // android.os.Trace section around refresh-thread work (shows up as ff:*
 // in atrace/Perfetto; costs next to nothing when nobody is tracing).
 internal inline fun <T> traced(name: String, block: () -> T): T {
-    android.os.Trace.beginSection(name)
+    Compat.beginTrace(name)
     try {
         return block()
     } finally {
-        android.os.Trace.endSection()
+        Compat.endTrace()
     }
 }
 
@@ -106,10 +105,20 @@ class OutputBuilder(
         val verifiedBoot = nativeLine("Verified Boot")
         val root = nativeLine("Root")
 
+        // On Android 7.1+ (everything the normal app runs on) apps can't
+        // read SELinux, so "Unknown" means restricted. Older Android may
+        // simply not have SELinux (4.1-4.2), so don't claim a reason there.
+        val unknownSelinux =
+            if (Build.VERSION.SDK_INT >= 25) {
+                "SELinux: Unknown [Restricted]"
+            } else {
+                "SELinux: Unknown"
+            }
+
         val selinux =
             when (val rawSelinux = nativeLine("SELinux")) {
                 null,
-                "SELinux: Unknown" -> "SELinux: Unknown [Restricted]"
+                "SELinux: Unknown" -> unknownSelinux
                 else -> rawSelinux
             }
 
@@ -156,11 +165,10 @@ class OutputBuilder(
 
         if (settings.isModuleEnabled(MODULE_DISPLAY)) {
             val displayText = run {
-                @Suppress("DEPRECATION")
-                val displayMode = activity.windowManager.defaultDisplay.mode
+                val displaySize = Compat.displaySize(activity)
 
-                "${displayMode.physicalWidth}x${displayMode.physicalHeight} @ " +
-                        "${displayMode.refreshRate.roundToInt()} Hz"
+                "${displaySize.width}x${displaySize.height} @ " +
+                        "${displaySize.refreshRate.roundToInt()} Hz"
             }
 
             groups[MODULE_DISPLAY] =
@@ -215,9 +223,9 @@ class OutputBuilder(
             }
 
             val storage = run {
-                val statFs = StatFs(activity.filesDir.absolutePath)
-                val totalStorage = statFs.totalBytes
-                val usedStorage = totalStorage - statFs.availableBytes
+                val (totalStorage, availableStorage) =
+                    Compat.storageBytes(activity.filesDir.absolutePath)
+                val usedStorage = totalStorage - availableStorage
 
                 val storagePercent =
                     if (totalStorage > 0) {
@@ -283,7 +291,7 @@ class OutputBuilder(
             groups[MODULE_MISC] =
                 buildMiscLines(
                     mode = mode,
-                    locale = activity.resources.configuration.locales[0].toLanguageTag()
+                    locale = Compat.localeTag(activity.resources.configuration)
                 )
         }
 
@@ -701,7 +709,7 @@ class OutputBuilder(
             MODE_WATCH -> {
                 listOf(
                     "API: ${Build.VERSION.SDK_INT}",
-                    "Patch: ${Build.VERSION.SECURITY_PATCH}"
+                    "Patch: ${Compat.securityPatch()}"
                 )
             }
 
@@ -714,7 +722,7 @@ class OutputBuilder(
             MODE_DETAILED -> {
                 buildList {
                     add("Android API: ${Build.VERSION.SDK_INT}")
-                    add("Patch: ${Build.VERSION.SECURITY_PATCH}")
+                    add("Patch: ${Compat.securityPatch()}")
                     add("Build: ${Build.DISPLAY}")
                     add("Device: ${Build.DEVICE}")
 
@@ -732,7 +740,7 @@ class OutputBuilder(
                 buildList {
                     add(
                         "Android API: ${Build.VERSION.SDK_INT} | " +
-                                "Patch: ${Build.VERSION.SECURITY_PATCH}"
+                                "Patch: ${Compat.securityPatch()}"
                     )
 
                     add("Build: ${Build.DISPLAY}")
@@ -834,7 +842,7 @@ class OutputBuilder(
             MODE_DETAILED -> {
                 listOf(
                     "Locale: $locale",
-                    "App: Fastfetch Android ${deviceInfo.getAppVersion()}",
+                    "App: ${BuildConfig.APP_NAME} ${deviceInfo.getAppVersion()}",
                     "Features: ${traced("ff:features") { deviceInfo.getFeatureSummary() }}"
                 )
             }
@@ -842,7 +850,7 @@ class OutputBuilder(
             else -> {
                 listOf(
                     "Locale: $locale",
-                    "App: Fastfetch Android ${deviceInfo.getAppVersion()}",
+                    "App: ${BuildConfig.APP_NAME} ${deviceInfo.getAppVersion()}",
                     "Features: ${traced("ff:features") { deviceInfo.getFeatureSummary() }}"
                 )
             }
@@ -903,9 +911,9 @@ class OutputBuilder(
                 if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
             }
 
-        private val cachedFirstAbi = Build.SUPPORTED_ABIS.firstOrNull() ?: "Unknown"
+        private val cachedFirstAbi = Compat.supportedAbis().firstOrNull() ?: "Unknown"
         private val cachedAllAbis =
-            Build.SUPPORTED_ABIS
+            Compat.supportedAbis()
                 .takeIf { it.isNotEmpty() }
                 ?.joinToString(", ")
                 ?: "Unknown"

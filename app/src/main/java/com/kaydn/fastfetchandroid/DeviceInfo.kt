@@ -8,13 +8,13 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.hardware.Sensor
 import android.hardware.SensorManager
-import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import android.os.SystemClock
+import androidx.annotation.RequiresApi
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
@@ -276,7 +276,7 @@ class DeviceInfo(
                 .lowercase(Locale.US)
 
         val primaryAbi =
-            Build.SUPPORTED_ABIS
+            Compat.supportedAbis()
                 .firstOrNull()
                 ?.lowercase(Locale.US)
                 ?: ""
@@ -452,10 +452,15 @@ class DeviceInfo(
     }
 
     fun getProcessBitness(): String {
-        return if (android.os.Process.is64Bit()) {
-            "64-bit"
-        } else {
-            "32-bit"
+        val is64Bit =
+            Compat.is64BitProcess {
+                getParsedStaticNativeLines()["Process Bits.value"]
+            }
+
+        return when (is64Bit) {
+            true -> "64-bit"
+            false -> "32-bit"
+            null -> "Unknown"
         }
     }
 
@@ -567,9 +572,7 @@ class DeviceInfo(
      */
     private fun hasCamera(): Boolean {
         return try {
-            activity.getSystemService(CameraManager::class.java)
-                .cameraIdList
-                .isNotEmpty()
+            Compat.cameraCount(activity) > 0
         } catch (_: Exception) {
             // Camera service unavailable: fall back to built-in cameras
             // only, never "external camera supported".
@@ -692,9 +695,38 @@ class DeviceInfo(
     // NETWORK
     // ==================================================
 
-    fun getNetworkLines(): List<String> {
-        val lines = mutableListOf<String>()
+    /** The active connection, however this Android version reports it. */
+    class NetworkSnapshot(
+        val connectionType: String,
+        val interfaceName: String?,
+        val addresses: List<NetworkAddress>,
+        val dnsServers: List<InetAddress>
+    )
 
+    class NetworkAddress(
+        val address: InetAddress,
+        val prefixLength: Int
+    )
+
+    fun getNetworkLines(): List<String> {
+        // Below Android 6.0 there's no activeNetwork, so LegacyNetwork
+        // finds the connection another way. The lines are built the same
+        // way either way.
+        val network =
+            (
+                if (Build.VERSION.SDK_INT >= 23) {
+                    readActiveNetwork()
+                } else {
+                    LegacyNetwork.read(activity)
+                }
+            )
+                ?: return emptyList()
+
+        return buildNetworkLines(network)
+    }
+
+    @RequiresApi(23)
+    private fun readActiveNetwork(): NetworkSnapshot? {
         val connectivityManager =
             activity.getSystemService(
                 ConnectivityManager::class.java
@@ -702,39 +734,35 @@ class DeviceInfo(
 
         val activeNetwork =
             connectivityManager.activeNetwork
-                ?: return lines
+                ?: return null
 
         val properties =
             connectivityManager
                 .getLinkProperties(activeNetwork)
-                ?: return lines
+                ?: return null
 
         val capabilities =
             connectivityManager
                 .getNetworkCapabilities(activeNetwork)
 
-        val connectionType =
-            when {
-                capabilities?.hasTransport(
-                    NetworkCapabilities.TRANSPORT_VPN
-                ) == true -> "VPN"
+        return NetworkSnapshot(
+            connectionType = transportName(capabilities),
+            interfaceName = properties.interfaceName,
+            addresses = properties.linkAddresses.map { linkAddress ->
+                NetworkAddress(
+                    address = linkAddress.address,
+                    prefixLength = linkAddress.prefixLength
+                )
+            },
+            dnsServers = properties.dnsServers
+        )
+    }
 
-                capabilities?.hasTransport(
-                    NetworkCapabilities.TRANSPORT_WIFI
-                ) == true -> "Wi-Fi"
+    private fun buildNetworkLines(network: NetworkSnapshot): List<String> {
+        val lines = mutableListOf<String>()
 
-                capabilities?.hasTransport(
-                    NetworkCapabilities.TRANSPORT_CELLULAR
-                ) == true -> "Cellular"
-
-                capabilities?.hasTransport(
-                    NetworkCapabilities.TRANSPORT_ETHERNET
-                ) == true -> "Ethernet"
-
-                else -> "Network"
-            }
-
-        val interfaceName = properties.interfaceName
+        val connectionType = network.connectionType
+        val interfaceName = network.interfaceName
 
         if (interfaceName.isNullOrBlank()) {
             lines.add("Network: $connectionType")
@@ -743,7 +771,7 @@ class DeviceInfo(
         }
 
         val ipv4 =
-            properties.linkAddresses
+            network.addresses
                 .firstOrNull { linkAddress ->
                     linkAddress.address is Inet4Address &&
                             !linkAddress.address.isLoopbackAddress
@@ -756,7 +784,7 @@ class DeviceInfo(
         }
 
         val ipv6 =
-            properties.linkAddresses
+            network.addresses
                 .firstOrNull { linkAddress ->
                     linkAddress.address is Inet6Address &&
                             !linkAddress.address.isLoopbackAddress &&
@@ -778,7 +806,7 @@ class DeviceInfo(
         }
 
         val dns =
-            properties.dnsServers
+            network.dnsServers
                 .take(2)
                 .mapNotNull { server ->
                     if (
@@ -921,6 +949,30 @@ class DeviceInfo(
     }
 
     companion object {
+        /** The connection's transport (6.0+, and 5.x via LegacyNetwork). */
+        @RequiresApi(21)
+        fun transportName(capabilities: NetworkCapabilities?): String {
+            return when {
+                capabilities?.hasTransport(
+                    NetworkCapabilities.TRANSPORT_VPN
+                ) == true -> "VPN"
+
+                capabilities?.hasTransport(
+                    NetworkCapabilities.TRANSPORT_WIFI
+                ) == true -> "Wi-Fi"
+
+                capabilities?.hasTransport(
+                    NetworkCapabilities.TRANSPORT_CELLULAR
+                ) == true -> "Cellular"
+
+                capabilities?.hasTransport(
+                    NetworkCapabilities.TRANSPORT_ETHERNET
+                ) == true -> "Ethernet"
+
+                else -> "Network"
+            }
+        }
+
         // Process-wide cache for staticInfoFromJNI(). Lives in the
         // companion so it survives activity recreation (rotation, dark
         // mode toggle, folding), and the GPU is only probed once.

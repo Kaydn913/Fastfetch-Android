@@ -4,7 +4,9 @@
     android:layout_height="48dp"
     android:gravity="center_vertical"
     android:fontFamily="@font/quicksand_regular"
+    android:paddingLeft="10dp"
     android:paddingStart="10dp"
+    android:paddingRight="10dp"
     android:paddingEnd="10dp"
     android:textColor="#FFFFFF"
     android:textSize="14sp" />

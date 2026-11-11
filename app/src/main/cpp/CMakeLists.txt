@@ -35,5 +35,16 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         android
         log
         EGL
-        GLESv2
-        vulkan)
+        GLESv2)
+
+# libvulkan.so only exists from Android 7.0 (API 24). The normal app always
+# builds for 24+ and links it directly. The legacy edition builds for older
+# Android, so native-lib.cpp opens it at runtime with dlopen instead (it's
+# there on 7.0 devices) and links libdl for that.
+if(ANDROID_PLATFORM_LEVEL GREATER_EQUAL 24)
+    target_link_libraries(${CMAKE_PROJECT_NAME}
+            vulkan)
+else()
+    target_link_libraries(${CMAKE_PROJECT_NAME}
+            dl)
+endif()
