@@ -14,6 +14,7 @@
 #include <cstdio>
 
 #if __ANDROID_API__ < 24
+#include <cstdlib>
 #include <dlfcn.h>
 #endif
 
@@ -55,6 +56,42 @@ static long long readNumberFile(const std::string& path) {
     return value;
 }
 
+#if __ANDROID_API__ < 24
+
+// How many CPU cores the kernel lists as present, from a list like "0-3"
+// or "0,2-3". -1 if it can't be read. Legacy build only: old Android's C
+// library can undercount configured cores (Android 4.1 says 1 of 2 on the
+// emulator).
+static long countPresentCores() {
+    std::ifstream file("/sys/devices/system/cpu/present");
+    std::string list;
+
+    if (!(file >> list)) {
+        return -1;
+    }
+
+    std::stringstream ranges(list);
+    std::string range;
+    long count = 0;
+
+    while (std::getline(ranges, range, ',')) {
+        size_t dash = range.find('-');
+        long first = std::strtol(range.c_str(), nullptr, 10);
+        long last =
+                dash == std::string::npos
+                ? first
+                : std::strtol(range.c_str() + dash + 1, nullptr, 10);
+
+        if (last >= first) {
+            count += last - first + 1;
+        }
+    }
+
+    return count > 0 ? count : -1;
+}
+
+#endif
+
 static long long getMaximumCpuFrequencyKHz() {
     // Publish only a complete hardware-max probe. Scaling limits can change
     // with thermal caps, and an unreadable core may come back online later.
@@ -66,6 +103,15 @@ static long long getMaximumCpuFrequencyKHz() {
     }
 
     long cores = sysconf(_SC_NPROCESSORS_CONF);
+
+#if __ANDROID_API__ < 24
+    long presentCores = countPresentCores();
+
+    if (presentCores > cores) {
+        cores = presentCores;
+    }
+#endif
+
     bool allHardwareMax = cores > 0;
 
     if (cores < 1) {
@@ -665,6 +711,16 @@ Java_com_kaydn_fastfetchandroid_MainActivity_dynamicInfoFromJNI(
     // CPU (online core count can change, so this stays per-tick)
     long configuredCores =
             sysconf(_SC_NPROCESSORS_CONF);
+
+#if __ANDROID_API__ < 24
+    // See countPresentCores(). The present list can't change, so it's read
+    // once.
+    static const long presentCores = countPresentCores();
+
+    if (presentCores > configuredCores) {
+        configuredCores = presentCores;
+    }
+#endif
 
     long onlineCores =
             sysconf(_SC_NPROCESSORS_ONLN);

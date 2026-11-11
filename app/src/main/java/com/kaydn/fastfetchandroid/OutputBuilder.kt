@@ -842,7 +842,7 @@ class OutputBuilder(
             MODE_DETAILED -> {
                 listOf(
                     "Locale: $locale",
-                    "App: Fastfetch Android ${deviceInfo.getAppVersion()}",
+                    "App: ${BuildConfig.APP_NAME} ${deviceInfo.getAppVersion()}",
                     "Features: ${traced("ff:features") { deviceInfo.getFeatureSummary() }}"
                 )
             }
@@ -850,7 +850,7 @@ class OutputBuilder(
             else -> {
                 listOf(
                     "Locale: $locale",
-                    "App: Fastfetch Android ${deviceInfo.getAppVersion()}",
+                    "App: ${BuildConfig.APP_NAME} ${deviceInfo.getAppVersion()}",
                     "Features: ${traced("ff:features") { deviceInfo.getFeatureSummary() }}"
                 )
             }

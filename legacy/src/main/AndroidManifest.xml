@@ -9,6 +9,12 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- The app never connects anywhere. On Android 4.x, reading the
+         network interfaces (IP addresses) and the 5.1 VPN check need a
+         socket, and only apps with INTERNET may create one. It's granted
+         at install, with no prompt. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature
         android:name="android.hardware.type.watch"
         android:required="false" />

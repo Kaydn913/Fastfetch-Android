@@ -15,6 +15,7 @@ import androidx.annotation.RequiresApi
 import java.io.IOException
 import java.net.Inet4Address
 import java.net.Inet6Address
+import java.net.InetAddress
 import java.net.NetworkInterface
 import java.net.Socket
 
@@ -191,28 +192,42 @@ internal object LegacyNetwork {
      * shown.
      */
     private fun pickInterface(activeType: Int): Pair<String, List<DeviceInfo.NetworkAddress>>? {
-        val candidates =
+        val interfaces =
             try {
                 NetworkInterface.getNetworkInterfaces()
                     ?.toList()
                     .orEmpty()
-                    .filter { it.isUp && !it.isLoopback }
-                    .map { networkInterface ->
-                        networkInterface.name to
-                            networkInterface.interfaceAddresses.mapNotNull { interfaceAddress ->
-                                interfaceAddress.address?.let {
-                                    DeviceInfo.NetworkAddress(
-                                        address = it,
-                                        prefixLength = interfaceAddress.networkPrefixLength.toInt()
-                                    )
-                                }
-                            }
-                    }
-                    .filter { (_, addresses) ->
-                        addresses.any { isUsable(it) }
-                    }
             } catch (_: Exception) {
                 emptyList()
+            }
+
+        // One interface that can't be read (isUp asks the kernel through a
+        // socket) shouldn't hide the others.
+        val candidates =
+            interfaces.mapNotNull { networkInterface ->
+                try {
+                    if (!networkInterface.isUp || networkInterface.isLoopback) {
+                        return@mapNotNull null
+                    }
+
+                    val addresses =
+                        networkInterface.interfaceAddresses.mapNotNull { interfaceAddress ->
+                            interfaceAddress.address?.let {
+                                DeviceInfo.NetworkAddress(
+                                    address = withoutScope(it),
+                                    prefixLength = interfaceAddress.networkPrefixLength.toInt()
+                                )
+                            }
+                        }
+
+                    if (addresses.any { isUsable(it) }) {
+                        networkInterface.name to addresses
+                    } else {
+                        null
+                    }
+                } catch (_: Exception) {
+                    null
+                }
             }
 
         val namePrefix =
@@ -226,6 +241,19 @@ internal object LegacyNetwork {
             namePrefix != null && name.startsWith(namePrefix)
         }
             ?: candidates.singleOrNull()
+    }
+
+    /**
+     * The interface list tags IPv6 addresses with their interface
+     * ("fec0::1%2"), which LinkProperties on 5.0+ doesn't. It only matters
+     * for link-local addresses, which aren't shown, so drop it.
+     */
+    private fun withoutScope(address: InetAddress): InetAddress {
+        return if (address is Inet6Address && !address.isLinkLocalAddress) {
+            InetAddress.getByAddress(address.address)
+        } else {
+            address
+        }
     }
 
     /** An address worth showing: IPv4, or IPv6 that isn't link-local. */

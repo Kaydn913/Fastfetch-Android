@@ -32,6 +32,13 @@ android {
             "false"
         )
 
+        // The name on the output's "App:" line.
+        buildConfigField(
+            "String",
+            "APP_NAME",
+            "\"Fastfetch Android\""
+        )
+
         ndk {
             abiFilters += listOf(
                 "arm64-v8a",
