@@ -142,6 +142,9 @@ class MainActivity : AppCompatActivity() {
 
         applyMainUiFont()
 
+        // Old Android has no gear character (see GearIcon).
+        GearIcon.applyIfNeeded(binding.settingsButton)
+
         binding.logoText.text = outputRenderer.buildAndroidLogo()
 
         setUpOutputArrangement()
